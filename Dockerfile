@@ -25,6 +25,9 @@ RUN alternatives --install /usr/local/bin/cmake cmake /usr/bin/cmake3 20 \
 RUN alternatives --install /usr/bin/python3 python3 /bin/python36 20 \
     --family python3
 
+# Enable toolkit
+RUN scl enable devtoolset-7 bash
+
 # Install NASM
 RUN curl -O https://www.nasm.us/pub/nasm/releasebuilds/2.13.03/nasm-2.13.03.tar.gz \
  && tar xf nasm-*.tar.gz && cd nasm-*/ \
@@ -41,7 +44,7 @@ RUN mkdir $HOME/blender-git \
  && git submodule foreach git pull --rebase origin master
 
 # Switch version
-RUN cd $HOME/blender-git \
+RUN cd $HOME/blender-git/blender \
  && git checkout blender-v2.83-release \
  && git submodule foreach git checkout blender-v2.83-release
 
