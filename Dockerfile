@@ -1,6 +1,4 @@
-FROM centos
-
-LABEL maintainer="mattias.ohlsson@inprose.com"
+FROM centos:7
 
 ENV HOME /root
 WORKDIR $HOME
@@ -41,6 +39,11 @@ RUN mkdir $HOME/blender-git \
  && git submodule update --init --recursive \
  && git submodule foreach git checkout master \
  && git submodule foreach git pull --rebase origin master
+
+# Switch version
+RUN cd $HOME/blender-git \
+ && git checkout blender-v2.83-release \
+ && git submodule foreach git checkout blender-v2.83-release
 
 COPY start /usr/bin/
 CMD ["scl", "enable", "devtoolset-7", "/usr/bin/start"]
