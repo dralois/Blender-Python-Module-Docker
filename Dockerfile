@@ -57,6 +57,7 @@ RUN alternatives --install /usr/bin/python3 python3 /bin/python36 20 \
 RUN cd $HOME/ && git clone https://github.com/wjakob/tbb.git \
  && cd tbb/build && cmake .. && scl enable devtoolset-7 "make default_target" \
  && cmake --install . --prefix /usr/ \
+ && cp -f *.so /lib64/ \
  && cd && rm -rf $HOME/tbb*
 
 # Install NASM
