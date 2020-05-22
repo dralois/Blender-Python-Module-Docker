@@ -55,8 +55,8 @@ RUN alternatives --install /usr/bin/python3 python3 /bin/python36 20 \
     --family python3
 
 # Update tbb to a version that isnt 10 years old
-RUN git clone https://github.com/wjakob/tbb.git \
- && cd tbb/build && cmake .. && make -j \
+RUN cd $HOME/ && git clone https://github.com/wjakob/tbb.git \
+ && cd tbb/build && cmake .. && make -j default \
  && cmake --install . --prefix /usr/ \
  && cd && rm -rf $HOME/tbb*
 
