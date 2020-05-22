@@ -36,9 +36,8 @@ RUN yum -y install mesa-libGLU-devel
 RUN yum -y install jack-audio-connection-kit-devel
 
 # Install & activate devtoolset 7
-RUN yum -y install devtoolset-7
 RUN yum-config-manager --enable rhel-server-rhscl-7-rpms
-RUN scl enable devtoolset-7 bash
+RUN yum -y install devtoolset-7
 
 # Cleanup
 RUN yum clean all
@@ -56,14 +55,14 @@ RUN alternatives --install /usr/bin/python3 python3 /bin/python36 20 \
 
 # Update tbb to a version that isnt 10 years old
 RUN cd $HOME/ && git clone https://github.com/wjakob/tbb.git \
- && cd tbb/build && cmake .. && make default_target \
+ && cd tbb/build && cmake .. && scl enable devtoolset-7 "make default_target" \
  && cmake --install . --prefix /usr/ \
  && cd && rm -rf $HOME/tbb*
 
 # Install NASM
 RUN curl -O https://www.nasm.us/pub/nasm/releasebuilds/2.13.03/nasm-2.13.03.tar.gz \
  && tar xf nasm-*.tar.gz && cd nasm-*/ \
- && ./configure && make && make install \
+ && ./configure && scl enable devtoolset-7 "make" && make install \
  && cd && rm -rf $HOME/nasm-*
 
 # Get the source
