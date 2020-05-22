@@ -1,22 +1,8 @@
-# [dralois/bpy-builder](https://github.com/dralois/Blender-Python-Module-Docker) (Forked from [here](https://hub.docker.com/r/mattiasohlsson/centos-blender-builder/))
+# [dralois/bpy-builder](https://hub.docker.com/r/dralois/blender-python-module-builder) (Forked from [here](https://hub.docker.com/r/mattiasohlsson/centos-blender-builder/))
 
 ## Usage
 
-### Automatic build
-
-    docker build https://github.com/dralois/Blender-Python-Module-Docker#master
-
-### Manual build
-
-    docker build https://github.com/dralois/Blender-Python-Module-Docker#master
-
-Use devtoolset-7.
-
-    scl enable devtoolset-7 bash
-
-Run /usr/bin/start
-
-    sh /usr/bin/start
+    docker run --storage-opt size=25G dralois/blender-python-module-builder
 
 ## Source
 
