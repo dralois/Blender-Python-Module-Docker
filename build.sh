@@ -7,6 +7,7 @@ if [[ $version != 7 ]]
 then
     printf "\n\nReloading with devtoolset-7\n\n"
     scl enable devtoolset-7 "sh ./build.sh"
+    exit 0
 else
     printf "\n\nDevtoolset-7 is running\n\n"
 fi
