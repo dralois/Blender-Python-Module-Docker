@@ -25,6 +25,7 @@ RUN yum -y install python-setuptools
 
 # Blender deps
 RUN yum -y install tcl
+RUN yum -y install expat-devel
 RUN yum -y install pcre-devel
 RUN yum -y install libXi-devel
 RUN yum -y install libXt-devel
@@ -33,6 +34,7 @@ RUN yum -y install libXrandr-devel
 RUN yum -y install libXinerama-devel
 RUN yum -y install libXcursor-devel
 RUN yum -y install mesa-libGLU-devel
+RUN yum -y install pulseaudio-libs-devel
 RUN yum -y install jack-audio-connection-kit-devel
 
 # Install & activate devtoolset 7
@@ -50,7 +52,7 @@ RUN alternatives --install /usr/local/bin/cmake cmake /usr/bin/cmake3 20 \
     --family cmake
 
 # Use python36
-RUN alternatives --install /usr/bin/python3 python3 /bin/python36 20 \
+RUN alternatives --install /usr/bin/python3 python3 /bin/python3.6 20 \
     --family python3
 
 # Update tbb to a version that isnt 10 years old
