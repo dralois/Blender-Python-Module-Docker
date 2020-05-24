@@ -27,6 +27,7 @@ RUN yum -y install python-setuptools
 RUN yum -y install tcl
 RUN yum -y install expat-devel
 RUN yum -y install pcre-devel
+RUN yum -y install alsa-lib-devel
 RUN yum -y install libXi-devel
 RUN yum -y install libXt-devel
 RUN yum -y install libX11-devel
