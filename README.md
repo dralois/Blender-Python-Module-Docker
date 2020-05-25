@@ -1,5 +1,9 @@
 # [dralois/bpy-builder](https://hub.docker.com/r/dralois/blender-python-module-builder) (Forked from [here](https://hub.docker.com/r/mattiasohlsson/centos-blender-builder/))
 
+## Description
+
+This docker container builds blender 2.83 as a python module. It is completely configured and setup for this task and able to compile a portable version that should work on most Linux distributions. The only requirement is python 3.6 / 3.7, as more recent versions will seg fault.
+
 ## Usage
 
 ### Automatic build
@@ -21,17 +25,21 @@ Then, either run the automatic builder
 sh /usr/bin/build.sh
 ```
 
-Or build manually (then not necessarily as python module)
+Or build manually (-> "Normal" builds are possible too!)
 
 ```bash
 # Enable correct compilers etc.
 scl enable devtoolset-7 bash
 # Go to source dir
 cd root/blender-git/
-# Build dependencies
+
+# For local, non-static builds (faster):
 sh ./build_files/build_environment/install_deps.sh --with-all --build-all
-# Make Blender of your choice
-make bpy / full / lite / ..
+# For portable, static builds (slower):
+make deps
+
+# Make Blender of your choice (bpy needs to be built without jemalloc)
+make [full] [lite] [bpy BUILD_CMAKE_ARGS="-D WITH_MEM_JEMALLOC=OFF"]
 ```
 
 ## Source
