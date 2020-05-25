@@ -64,7 +64,7 @@ RUN cd $HOME/ && git clone https://github.com/wjakob/tbb.git \
  && cd && rm -rf $HOME/tbb*
 
 # Install NASM
-RUN curl -O https://www.nasm.us/pub/nasm/releasebuilds/2.13.03/nasm-2.13.03.tar.gz \
+RUN curl -O https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.gz \
  && tar xf nasm-*.tar.gz && cd nasm-*/ \
  && ./configure && scl enable devtoolset-7 "make" && make install \
  && cd && rm -rf $HOME/nasm-*
