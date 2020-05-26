@@ -2,7 +2,7 @@
 
 ## Description
 
-This docker container builds blender 2.83 as a python module. It is completely configured and setup for this task and able to compile a portable version that should work on most Linux distributions. The only requirement is python 3.6 / 3.7, as more recent versions will seg fault.
+This docker container builds blender 2.83 as a python module. It is completely configured and setup for this task and able to compile a portable version that should work on most Linux distributions. The only requirement is python 3.6 / 3.7, as more recent versions will seg fault. This container can also build appleseed with python 3 bindings, which is required for packaging blenderseed. The build script automatically downloads & builds both appleseed and blenderseed and stores the package in the build output directory.
 
 ## Usage
 
@@ -40,6 +40,15 @@ make deps
 
 # Make Blender of your choice (bpy needs to be built without jemalloc)
 make [full] [lite] [bpy BUILD_CMAKE_ARGS="-D WITH_MEM_JEMALLOC=OFF"]
+```
+
+### Appleseed + Blenderseed build
+
+The Blender dependencies have to have been built already for the script to work, as it requires Blenders static Python version.
+
+```bash
+# Builds appleseed & blenderseed
+sh /usr/bin/appleseed.sh
 ```
 
 ## Source
