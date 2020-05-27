@@ -18,6 +18,7 @@ yum -y install qt5-qtbase-devel
 # Download appleseed 2.1.0
 if [ ! -d "$HOME/appleseed-git" ]; then
     mkdir $HOME/appleseed-git \
+    && mkdir $HOME/blenderseed-git \
     && cd $HOME/appleseed-git \
     && git clone https://github.com/appleseedhq/appleseed.git \
     && cd appleseed \
@@ -118,11 +119,9 @@ cd $HOME/appleseed-git/build && make all \
  && cmake --install . --prefix $HOME/blenderseed-git/appleseed
 
 # Make sure blenderseed is downloaded
-if [ ! -d "$HOME/blenderseed-git" ]; then
-    mkdir $HOME/blenderseed-git \
-    && cd $HOME/blenderseed-git \
-    && git clone https://github.com/appleseedhq/blenderseed.git \
-    && mkdir $HOME/blenderseed-git/appleseed
+if [ ! -d "$HOME/blenderseed-git/blenderseed" ]; then
+    cd $HOME/blenderseed-git \
+    && git clone https://github.com/appleseedhq/blenderseed.git
 fi
 
 # Finally bundle blenderseed
