@@ -1,4 +1,4 @@
-FROM centos:7
+FROM centos/devtoolset-6-toolchain-centos7
 
 LABEL maintainer="alexander.epple@tum.de"
 
@@ -38,10 +38,6 @@ RUN yum -y install libXcursor-devel
 RUN yum -y install mesa-libGLU-devel
 RUN yum -y install pulseaudio-libs-devel
 RUN yum -y install jack-audio-connection-kit-devel
-
-# Install & activate devtoolset 7
-RUN yum-config-manager --enable rhel-server-rhscl-7-rpms
-RUN yum -y install devtoolset-7
 
 # Cleanup
 RUN yum clean all
