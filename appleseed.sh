@@ -3,13 +3,12 @@
 # Make sure toolset is enabled
 gcc --version
 version="$(gcc -dumpversion)"
-if [[ $version != 7 ]]
-then
-    printf "\n\nReloading with devtoolset-7\n\n"
-    scl enable devtoolset-7 "sh ./appleseed.sh"
-    exit 0
+if [[ $version =~ 6.*.* ]]; then
+    printf "\n\nDevtoolset-6 is running\n\n"
 else
-    printf "\n\nDevtoolset-7 is running\n\n"
+    printf "\n\nReloading with devtoolset-6\n\n"
+    scl enable devtoolset-6 "sh ./build.sh"
+    exit 0
 fi
 
 # Install appleseed deps
@@ -17,8 +16,7 @@ yum -y update
 yum -y install qt5-qtbase-devel
 
 # Download appleseed 2.1.0
-if [ ! -d "$HOME/appleseed-git" ]
-then
+if [ ! -d "$HOME/appleseed-git" ]; then
     mkdir $HOME/appleseed-git \
     && cd $HOME/appleseed-git \
     && git clone https://github.com/appleseedhq/appleseed.git \
@@ -27,8 +25,7 @@ then
 fi
 
 # Download prebuilt binaries
-if [ ! -d "$HOME/appleseed-git/prebuilt-linux-deps" ]
-then
+if [ ! -d "$HOME/appleseed-git/prebuilt-linux-deps" ]; then
     cd $HOME/appleseed-git \
     && curl -OL https://github.com/appleseedhq/linux-deps/releases/download/v2.1.1/appleseed-deps-static-2.1.1.tgz \
     && tar xf appleseed-*.tgz \
@@ -36,15 +33,13 @@ then
 fi
 
 # Blender deps must have been built first
-if [ ! -d "$HOME/blender-git/lib/linux_x86_64" ]
-then
+if [ ! -d "$HOME/blender-git/lib/linux_x86_64" ]; then
     printf "\nBlender deps have not been built yet, exiting..\n"
     exit 0
 fi
 
 # Setup boost 1.61
-if [ ! -d "$HOME/boost-py" ]
-then
+if [ ! -d "$HOME/boost-py" ]; then
     mkdir $HOME/boost-py \
     && mkdir $HOME/boost-py/build \
     && cd $HOME/boost-py \
@@ -67,13 +62,14 @@ cd $HOME/boost-py/boost_1_61_0
  --prefix=$HOME/boost-py/build \
  install
 
-# Generate appleseed for blender cmake project
+# Declare paths
 cd $HOME/appleseed-git/appleseed
 export PYTHON_DIR=$HOME/blender-git/lib/linux_x86_64/python
 export BOOST_PY=$HOME/boost-py/build
 export APPLESEED_DEPENDENCIES=$HOME/appleseed-git/prebuilt-linux-deps
 export CMAKE_INCLUDE_PATH=$APPLESEED_DEPENDENCIES/include
 export CMAKE_LIBRARY_PATH=$APPLESEED_DEPENDENCIES/lib
+# Generate appleseed with python3 bindings cmake project
 cmake -B ../build \
   -Wno-dev \
   -DWITH_STUDIO=OFF \
@@ -122,8 +118,7 @@ cd $HOME/appleseed-git/build && make all \
  && cmake --install . --prefix $HOME/blenderseed-git/appleseed
 
 # Make sure blenderseed is downloaded
-if [ ! -d "$HOME/blenderseed-git" ]
-then
+if [ ! -d "$HOME/blenderseed-git" ]; then
     mkdir $HOME/blenderseed-git \
     && cd $HOME/blenderseed-git \
     && git clone https://github.com/appleseedhq/blenderseed.git \

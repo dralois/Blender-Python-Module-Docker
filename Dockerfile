@@ -4,8 +4,10 @@ LABEL maintainer="alexander.epple@tum.de"
 
 ENV HOME /root
 WORKDIR $HOME
+USER root
 
 # Init
+RUN su -
 RUN yum update -y \
  && yum clean all
 
@@ -58,7 +60,7 @@ RUN cd $HOME/ \
  && git clone https://github.com/wjakob/tbb.git \
  && cd tbb/build \
  && cmake .. \
- && scl enable devtoolset-7 "make default_target" \
+ && scl enable devtoolset-6 "make default_target" \
  && cmake --install . --prefix /usr/ \
  && cp -f *.so /lib64/ \
  && cd && rm -rf $HOME/tbb*
@@ -68,7 +70,7 @@ RUN curl -O https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.
  && tar xf nasm-*.tar.gz \
  && cd nasm-*/ \
  && ./configure \
- && scl enable devtoolset-7 "make" \
+ && scl enable devtoolset-6 "make" \
  && make install \
  && cd && rm -rf $HOME/nasm-*
 
