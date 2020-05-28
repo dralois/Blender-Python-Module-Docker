@@ -65,19 +65,21 @@ cd $HOME/boost-py/boost_1_61_0
 
 # Declare paths
 cd $HOME/appleseed-git/appleseed
-export PYTHON_DIR=$HOME/blender-git/lib/linux_x86_64/python
-export BOOST_PY=$HOME/boost-py/build
+export BLENDER_DIR=$HOME/blender-git/lib/linux_x86_64
+export BOOST_PY_DIR=$HOME/boost-py/build
 export APPLESEED_DEPENDENCIES=$HOME/appleseed-git/prebuilt-linux-deps
 export CMAKE_INCLUDE_PATH=$APPLESEED_DEPENDENCIES/include
 export CMAKE_LIBRARY_PATH=$APPLESEED_DEPENDENCIES/lib
+
 # Generate appleseed with python3 bindings cmake project
 cmake -B ../build \
   -Wno-dev \
+  -DCMAKE_PREFIX_PATH=/usr/include/qt5 \
   -DWITH_STUDIO=OFF \
   -DWITH_PYTHON2_BINDINGS=OFF \
   -DWITH_PYTHON3_BINDINGS=ON \
-  -DPYTHON3_INCLUDE_DIR=$PYTHON_DIR/include/python3.7m \
-  -DPYTHON3_LIBRARY=$PYTHON_DIR/lib/libpython3.7m.a \
+  -DPYTHON3_INCLUDE_DIR=$BLENDER_DIR/python/include/python3.7m \
+  -DPYTHON3_LIBRARY=$BLENDER_DIR/python/lib/libpython3.7m.a \
   -DWITH_EMBREE=ON \
   -DUSE_SSE42=ON \
   -DUSE_STATIC_BOOST=ON \
@@ -88,31 +90,148 @@ cmake -B ../build \
   -DBoost_CHRONO_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_chrono-gcc63-mt-1_61.a \
   -DBoost_DATE_TIME_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_date_time-gcc63-mt-1_61.a \
   -DBoost_FILESYSTEM_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_filesystem-gcc63-mt-1_61.a \
-  -DBoost_PYTHON3_LIBRARY=$BOOST_PY/lib/libboost_python3.a \
-  -DBoost_PYTHON3_LIBRARY_RELEASE=$BOOST_PY/lib/libboost_python3.a \
+  -DBoost_PYTHON3_LIBRARY=$BOOST_PY_DIR/lib/libboost_python3.a \
+  -DBoost_PYTHON3_LIBRARY_RELEASE=$BOOST_PY_DIR/lib/libboost_python3.a \
   -DBoost_REGEX_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_regex-gcc63-mt-1_61.a \
   -DBoost_SYSTEM_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_system-gcc63-mt-1_61.a \
   -DBoost_THREAD_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_thread-gcc63-mt-1_61.a \
   -DBoost_WAVE_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_wave-gcc63-mt-1_61.a \
   -DBoost_SERIALIZATION_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_serialization-gcc63-mt-1_61.a \
-  -DEMBREE_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/include \
-  -DEMBREE_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libembree3.a \
-  -DIMATH_HALF_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libHalf-2_3_s.a \
-  -DIMATH_IEX_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libIex-2_3_s.a \
-  -DIMATH_MATH_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libImath-2_3_s.a \
-  -DOPENEXR_IMF_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libIlmImf-2_3_s.a \
-  -DOPENEXR_THREADS_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libIlmThread-2_3_s.a \
+  -DEMBREE_INCLUDE_DIR=$BLENDER_DIR/embree/include \
+  -DEMBREE_LIBRARY=$BLENDER_DIR/embree/lib/libembree3.a \
+  -DIMATH_HALF_LIBRARY=$BLENDER_DIR/openexr/lib/libHalf.a \
+  -DIMATH_IEX_LIBRARY=$BLENDER_DIR/openexr/lib/libIex.a \
+  -DIMATH_MATH_LIBRARY=$BLENDER_DIR/openexr/lib/libImath.a \
+  -DOPENEXR_IMF_LIBRARY=$BLENDER_DIR/openexr/lib/libIlmImf.a \
+  -DOPENEXR_THREADS_LIBRARY=$BLENDER_DIR/openexr/lib/libIlmThread.a \
   -DXERCES_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libxerces-c-3.2.a \
+  -DZLIB_ROOT=$BLENDER_DIR/zlib \
   -DLZ4_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/include \
   -DLZ4_LIBRARY=$APPLESEED_DEPENDENCIES/lib/liblz4.a \
-  -DOPENIMAGEIO_OIIOTOOL=$APPLESEED_DEPENDENCIES/bin/oiiotool \
-  -DOPENIMAGEIO_IDIFF=$APPLESEED_DEPENDENCIES/bin/idiff \
-  -DOSL_COMPILER=$APPLESEED_DEPENDENCIES/bin/oslc \
-  -DOSL_MAKETX=$APPLESEED_DEPENDENCIES/bin/maketx \
+  -DPNG_INCLUDE_DIR=$BLENDER_DIR/png/include \
+  -DPNG_LIBRARY=$BLENDER_DIR/png/lib/libpng16.a \
+  -DJPEG_INCLUDE_DIR=$BLENDER_DIR/jpeg/include \
+  -DJPEG_LIBRARY=$BLENDER_DIR/jpeg/lib/libjpeg.a \
+  -DTIFF_INCLUDE_DIR=$BLENDER_DIR/tiff/include \
+  -DTIFF_LIBRARY=$BLENDER_DIR/tiff/lib/libtiff.a \
+  -DOPENIMAGEIO_OIIOTOOL=$BLENDER_DIR/openimageio/bin/oiiotool \
+  -DOPENIMAGEIO_IDIFF=$BLENDER_DIR/openimageio/bin/idiff \
+  -DOPENIMAGEIO_INCLUDE_DIR=$BLENDER_DIR/openimageio/include \
+  -DOPENIMAGEIO_LIBRARY=$BLENDER_DIR/openimageio/lib/libOpenImageIO.a \
+  -DOSL_INCLUDE_DIR=$BLENDER_DIR/osl/include \
+  -DOSL_EXEC_LIBRARY=$BLENDER_DIR/osl/lib/liboslexec.a \
+  -DOSL_COMP_LIBRARY=$BLENDER_DIR/osl/lib/liboslcomp.a \
+  -DOSL_QUERY_LIBRARY=$BLENDER_DIR/osl/lib/liboslquery.a \
+  -DOSL_MAKETX=$BLENDER_DIR/openimageio/bin/maketx \
   -DOSL_QUERY_INFO=$APPLESEED_DEPENDENCIES/bin/oslinfo \
-  -DAPPLESEED_DENOISER_LINK_EXTRA_LIBRARIES:STRING="-Wl,--exclude-libs,ALL -L${APPLESEED_DEPENDENCIES}/lib -l:libIlmImf-2_3_s.a -l:libIlmThread-2_3_s.a -l:libImath-2_3_s.a -l:libIexMath-2_3_s.a -l:libIex-2_3_s.a -l:libHalf-2_3_s.a -l:libIex-2_3_s.a -l:libz.a" \
-  -DAPPLESEED_LINK_EXTRA_LIBRARIES:STRING="-Wl,--exclude-libs,ALL -L${APPLESEED_DEPENDENCIES}/lib -L${BOOST_PY}/lib -L${PYTHON_DIR}/lib -l:libembree3.a -l:libembree_avx2.a -l:libembree_avx.a -l:libembree_sse42.a -l:libsimd.a -l:libmath.a -l:libtasking.a -l:liblexers.a -l:libsys.a -ltbb -l:liboslexec.a -l:libOpenImageIO.a -l:libOpenColorIO.a -l:libyaml-cpp.a -l:libtinyxml.a -l:libtiff.a -l:libjpeg.a -l:libIlmImf-2_3_s.a -l:libIlmThread-2_3_s.a -l:libImath-2_3_s.a -l:libIexMath-2_3_s.a -l:libIex-2_3_s.a -l:libHalf-2_3_s.a -l:libIex-2_3_s.a -l:libpng16.a -l:libLLVMLTO.a -l:libLLVMPasses.a -l:libLLVMObjCARCOpts.a -l:libLLVMSymbolize.a -l:libLLVMDebugInfoPDB.a -l:libLLVMDebugInfoDWARF.a -l:libLLVMTableGen.a -l:libLLVMDlltoolDriver.a -l:libLLVMLineEditor.a -l:libLLVMOrcJIT.a -l:libLLVMCoverage.a -l:libLLVMMIRParser.a -l:libLLVMNVPTXCodeGen.a -l:libLLVMNVPTXDesc.a -l:libLLVMNVPTXInfo.a -l:libLLVMNVPTXAsmPrinter.a -l:libLLVMObjectYAML.a -l:libLLVMLibDriver.a -l:libLLVMOption.a -l:libLLVMX86Disassembler.a -l:libLLVMX86AsmParser.a -l:libLLVMX86CodeGen.a -l:libLLVMGlobalISel.a -l:libLLVMSelectionDAG.a -l:libLLVMAsmPrinter.a -l:libLLVMDebugInfoCodeView.a -l:libLLVMDebugInfoMSF.a -l:libLLVMX86Desc.a -l:libLLVMMCDisassembler.a -l:libLLVMX86Info.a -l:libLLVMX86AsmPrinter.a -l:libLLVMX86Utils.a -l:libLLVMMCJIT.a -l:libLLVMInterpreter.a -l:libLLVMExecutionEngine.a -l:libLLVMRuntimeDyld.a -l:libLLVMCodeGen.a -l:libLLVMTarget.a -l:libLLVMCoroutines.a -l:libLLVMipo.a -l:libLLVMInstrumentation.a -l:libLLVMVectorize.a -l:libLLVMScalarOpts.a -l:libLLVMLinker.a -l:libLLVMIRReader.a -l:libLLVMAsmParser.a -l:libLLVMInstCombine.a -l:libLLVMTransformUtils.a -l:libLLVMBitWriter.a -l:libLLVMAnalysis.a -l:libLLVMProfileData.a -l:libLLVMObject.a -l:libLLVMMCParser.a -l:libLLVMMC.a -l:libLLVMBitReader.a -l:libLLVMCore.a -l:libLLVMBinaryFormat.a -l:libLLVMSupport.a -l:libLLVMDemangle.a -l:libz.a" \
-  -DCMAKE_PREFIX_PATH=/usr/include/qt5
+  -DAPPLESEED_DENOISER_LINK_EXTRA_LIBRARIES:STRING="-Wl,--exclude-libs,ALL \
+  -L${APPLESEED_DEPENDENCIES}/lib \
+  -L${BLENDER_DIR}/openexr/lib \
+  -L${BLENDER_DIR}/zlib/lib \
+  -l:libIlmImf.a \
+  -l:libIlmThread.a \
+  -l:libImath.a \
+  -l:libIexMath.a \
+  -l:libIex.a \
+  -l:libHalf.a \
+  -l:libz_pic.a" \
+  -DAPPLESEED_LINK_EXTRA_LIBRARIES:STRING="-Wl,--exclude-libs,ALL \
+  -L${APPLESEED_DEPENDENCIES}/lib \
+  -L${BOOST_PY_DIR}/lib \
+  -L${BLENDER_DIR}/python/lib \
+  -L${BLENDER_DIR}/embree/lib \
+  -L${BLENDER_DIR}/openexr/lib \
+  -L${BLENDER_DIR}/openimageio/lib \
+  -L${BLENDER_DIR}/zlib/lib \
+  -L${BLENDER_DIR}/png/lib \
+  -L${BLENDER_DIR}/jpeg/lib \
+  -L${BLENDER_DIR}/tiff/lib \
+  -L${BLENDER_DIR}/osl/lib \
+  -l:libembree3.a \
+  -l:libembree_avx2.a \
+  -l:libembree_avx.a \
+  -l:libembree_sse42.a \
+  -l:libsimd.a \
+  -l:libmath.a \
+  -l:libtasking.a \
+  -l:liblexers.a \
+  -l:libsys.a \
+  -l:liboslexec.a \
+  -l:libOpenImageIO.a \
+  -l:libOpenColorIO.a \
+  -l:libyaml-cpp.a \
+  -l:libtinyxml.a \
+  -l:libtiff.a \
+  -l:libjpeg.a \
+  -l:libIlmImf.a \
+  -l:libIlmThread.a \
+  -l:libImath.a \
+  -l:libIexMath.a \
+  -l:libIex.a \
+  -l:libHalf.a \
+  -l:libIex.a \
+  -l:libpng16.a \
+  -l:libLLVMLTO.a \
+  -l:libLLVMPasses.a \
+  -l:libLLVMObjCARCOpts.a \
+  -l:libLLVMSymbolize.a \
+  -l:libLLVMDebugInfoPDB.a \
+  -l:libLLVMDebugInfoDWARF.a \
+  -l:libLLVMTableGen.a \
+  -l:libLLVMDlltoolDriver.a \
+  -l:libLLVMLineEditor.a \
+  -l:libLLVMOrcJIT.a \
+  -l:libLLVMCoverage.a \
+  -l:libLLVMMIRParser.a \
+  -l:libLLVMNVPTXCodeGen.a \
+  -l:libLLVMNVPTXDesc.a \
+  -l:libLLVMNVPTXInfo.a \
+  -l:libLLVMNVPTXAsmPrinter.a \
+  -l:libLLVMObjectYAML.a \
+  -l:libLLVMLibDriver.a \
+  -l:libLLVMOption.a \
+  -l:libLLVMX86Disassembler.a \
+  -l:libLLVMX86AsmParser.a \
+  -l:libLLVMX86CodeGen.a \
+  -l:libLLVMGlobalISel.a \
+  -l:libLLVMSelectionDAG.a \
+  -l:libLLVMAsmPrinter.a \
+  -l:libLLVMDebugInfoCodeView.a \
+  -l:libLLVMDebugInfoMSF.a \
+  -l:libLLVMX86Desc.a \
+  -l:libLLVMMCDisassembler.a \
+  -l:libLLVMX86Info.a \
+  -l:libLLVMX86AsmPrinter.a \
+  -l:libLLVMX86Utils.a \
+  -l:libLLVMMCJIT.a \
+  -l:libLLVMInterpreter.a \
+  -l:libLLVMExecutionEngine.a \
+  -l:libLLVMRuntimeDyld.a \
+  -l:libLLVMCodeGen.a \
+  -l:libLLVMTarget.a \
+  -l:libLLVMCoroutines.a \
+  -l:libLLVMipo.a \
+  -l:libLLVMInstrumentation.a \
+  -l:libLLVMVectorize.a \
+  -l:libLLVMScalarOpts.a \
+  -l:libLLVMLinker.a \
+  -l:libLLVMIRReader.a \
+  -l:libLLVMAsmParser.a \
+  -l:libLLVMInstCombine.a \
+  -l:libLLVMTransformUtils.a \
+  -l:libLLVMBitWriter.a \
+  -l:libLLVMAnalysis.a \
+  -l:libLLVMProfileData.a \
+  -l:libLLVMObject.a \
+  -l:libLLVMMCParser.a \
+  -l:libLLVMMC.a \
+  -l:libLLVMBitReader.a \
+  -l:libLLVMCore.a \
+  -l:libLLVMBinaryFormat.a \
+  -l:libLLVMSupport.a \
+  -l:libLLVMDemangle.a \
+  -l:libz_pic.a \
+  -ltbb"
 
 # Build appleseed for blender then install it
 cd $HOME/appleseed-git/build && make all \
