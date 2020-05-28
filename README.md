@@ -2,7 +2,7 @@
 
 ## Description
 
-This docker container builds Blender 2.83 as a python module, using CentOS 7 & devtoolset 6 (same as the official builds). The container comes completely setup for this task and compiles a portable version of Blender as a python module for Linux, able to be used on most distributions. The only requirement on the target system is python 3.7 (3.6 may work..), as the newest versions (>= 3.8) will segmentation fault on import. This container can optionally also build Appleseed 2.1.0 with python 3 bindings, which is required for the Blender addon. The Appleseed build script automatically downloads & builds Blenderseed and stores the addon in the output directory (/root/build). This step has to be invoked manually within the container.
+This docker container builds Blender 2.82a as a python module, using CentOS 7 & devtoolset 6 (same as the official builds). The container comes completely setup for this task and compiles a portable version of Blender as a python module for Linux, able to be used on most distributions. The only requirement on the target system is python 3.7 (3.6 may work..), as the newest versions (>= 3.8) will segmentation fault on import. This container can optionally also build Appleseed 2.1.0 with python 3 bindings, which is required for the Blender addon. The Appleseed build script automatically downloads & builds Blenderseed and stores the addon in the output directory (/root/build). This step has to be invoked manually within the container.
 
 ## Usage
 

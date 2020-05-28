@@ -11,18 +11,18 @@ else
     exit 0
 fi
 
-# Install appleseed deps
+# Install appleseed / blenderseed deps
 yum -y update
+yum -y install python2
+yum -y install python2-pip
 yum -y install qt5-qtbase-devel
 
-# Download appleseed 2.1.0
+# Download appleseed 2.1.0 (latest)
 if [ ! -d "$HOME/appleseed-git" ]; then
     mkdir $HOME/appleseed-git \
     && mkdir $HOME/blenderseed-git \
     && cd $HOME/appleseed-git \
-    && git clone https://github.com/appleseedhq/appleseed.git \
-    && cd appleseed \
-    && git checkout 2.1.0-beta
+    && git clone https://github.com/appleseedhq/appleseed.git
 fi
 
 # Download prebuilt binaries
@@ -47,16 +47,16 @@ if [ ! -d "$HOME/boost-py" ]; then
     && wget -O boost.tar.gz https://sourceforge.net/projects/boost/files/boost/1.61.0/boost_1_61_0.tar.gz/download?use_mirror=pilotfiber \
     && tar xf boost.tar.gz \
     && cd boost_1_61_0 \
-    && ./bootstrap.sh \
+    && ./bootstrap.sh --with-python-version=3.7 --prefix=$HOME/boost-py/build \
     && cd && rm -rf $HOME/boost-py/boost.tar.gz
     # Patch compiler bug
     sed -i "s/return PyUnicode_Check(obj) ? _PyUnicode_AsString(obj) : 0;/return (void *)(PyUnicode_Check(obj) ? _PyUnicode_AsString(obj) : 0);/g" \
      $HOME/boost-py/boost_1_61_0/libs/python/src/converter/builtin_converters.cpp
 fi
 
-# Build boost::python37
+# Build static boost with blender's python 3
 cd $HOME/boost-py/boost_1_61_0
-./b2 cxxflags="-std=c++11 -fPIC" \
+./b2 cxxflags="-std=c++11 -fPIC -static" \
  --user-config=$HOME/user-config.jam \
  architecture=x86 address-model=64 link=static threading=multi \
  --with-python \
@@ -64,7 +64,6 @@ cd $HOME/boost-py/boost_1_61_0
  install
 
 # Declare paths
-cd $HOME/appleseed-git/appleseed
 export BLENDER_DIR=$HOME/blender-git/lib/linux_x86_64
 export BOOST_PY_DIR=$HOME/boost-py/build
 export APPLESEED_DEPENDENCIES=$HOME/appleseed-git/prebuilt-linux-deps
@@ -72,8 +71,8 @@ export CMAKE_INCLUDE_PATH=$APPLESEED_DEPENDENCIES/include
 export CMAKE_LIBRARY_PATH=$APPLESEED_DEPENDENCIES/lib
 
 # Generate appleseed with python3 bindings cmake project
-cmake -B ../build \
-  -Wno-dev \
+cd $HOME/appleseed-git/appleseed
+cmake -B ../build -Wno-dev \
   -DCMAKE_PREFIX_PATH=/usr/include/qt5 \
   -DWITH_STUDIO=OFF \
   -DWITH_PYTHON2_BINDINGS=OFF \
@@ -207,21 +206,26 @@ cmake -B ../build \
     -l:libLLVMSupport.a \
     -l:libLLVMDemangle.a \
     -l:libz.a \
-    -ltbb"
+    -lpthread \
+    -lutil \
+    -ltbb \
+    -ldl \
+    -lm"
 
 # Build appleseed for blender then install it
 cd $HOME/appleseed-git/build && make all \
  && cmake --install . --prefix $HOME/blenderseed-git/appleseed
 
-# Make sure blenderseed is downloaded
+# Make sure blenderseed is downloaded & fix packaging bug
 if [ ! -d "$HOME/blenderseed-git/blenderseed" ]; then
     cd $HOME/blenderseed-git \
-    && git clone https://github.com/appleseedhq/blenderseed.git
+    && git clone https://github.com/appleseedhq/blenderseed.git \
+    && sed -i "s/\"libappleseed.so\", \"libappleseed.shared.so\"/\"libappleseed.so\"/g" \
+     $HOME/blenderseed-git/blenderseed/scripts/blenderseed.package.py
 fi
 
 # Finally bundle blenderseed
 cp $HOME/blenderseed.package.configuration.xml $HOME/blenderseed-git/blenderseed/scripts \
  && cd $HOME/blenderseed-git/blenderseed/scripts \
- && yum -y install python2-pip \
  && pip2 install colorama \
  && python2 blenderseed.package.py

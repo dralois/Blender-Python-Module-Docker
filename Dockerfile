@@ -23,6 +23,7 @@ RUN yum -y install yasm
 RUN yum -y install cmake3
 RUN yum -y install zlib-devel
 RUN yum -y install ilmbase-devel
+RUN yum -y install glibc-static
 RUN yum -y install python36
 RUN yum -y install python-setuptools
 
@@ -85,8 +86,8 @@ RUN mkdir $HOME/blender-git \
 
 # Switch version
 RUN cd $HOME/blender-git/blender \
- && git checkout blender-v2.83-release \
- && git submodule foreach git checkout blender-v2.83-release
+ && git checkout v2.82a \
+ && git submodule foreach git checkout v2.82a
 
 # Setup for appleseed
 COPY appleseed.sh /usr/bin/
