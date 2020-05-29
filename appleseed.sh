@@ -57,7 +57,7 @@ fi
 # Build static boost with blender's python 3
 cd $HOME/boost-py/boost_1_61_0
 ./b2 cxxflags="-std=c++11 -fPIC -static" \
- --user-config=$HOME/user-config.jam \
+ --user-config=$HOME/patches/user-config.jam \
  architecture=x86 address-model=64 link=static threading=multi \
  --with-python \
  --prefix=$HOME/boost-py/build \
@@ -225,7 +225,7 @@ if [ ! -d "$HOME/blenderseed-git/blenderseed" ]; then
 fi
 
 # Finally bundle blenderseed
-cp $HOME/blenderseed.package.configuration.xml $HOME/blenderseed-git/blenderseed/scripts \
+cp $HOME/patches/blenderseed.package.configuration.xml $HOME/blenderseed-git/blenderseed/scripts \
  && cd $HOME/blenderseed-git/blenderseed/scripts \
  && pip2 install colorama \
  && python2 blenderseed.package.py

@@ -30,6 +30,7 @@ RUN yum -y install python-setuptools
 # Blender deps
 RUN yum -y install tcl
 RUN yum -y install expat-devel
+RUN yum -y install pugixml-devel
 RUN yum -y install pcre-devel
 RUN yum -y install alsa-lib-devel
 RUN yum -y install libXi-devel
@@ -89,13 +90,16 @@ RUN cd $HOME/blender-git/blender \
  && git checkout v2.82a \
  && git submodule foreach git checkout v2.82a
 
-# Setup for appleseed
-COPY appleseed.sh /usr/bin/
-COPY user-config.jam /root/
-COPY blenderseed.package.configuration.xml /root/
+# Appleseed & patch stuff
+RUN mkdir $HOME/patches
+COPY osl.diff $HOME/patches
+COPY versions.cmake $HOME/patches
+COPY user-config.jam $HOME/patches
+COPY blenderseed.package.configuration.xml $HOME/patches
 
 # Create build command
 COPY build.sh /usr/bin/
+COPY appleseed.sh /usr/bin/
 CMD ["scl", "enable", "devtoolset-7", "/usr/bin/build.sh"]
 
 # Mount the build folder

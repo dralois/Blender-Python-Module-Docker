@@ -1,0 +1,12 @@
+--- OpenShadingLanguage-Release-1.9.9/CMakeLists.txt	2018-05-01 22:39:02.000000000 +0000
++++ blender-git/build_linux/deps/build/osl/src/external_osl/CMakeLists.txt	2020-05-28 21:09:54.800000000 +0000
+@@ -161,9 +161,6 @@
+ add_subdirectory (src/osl.imageio)
+ endif ()
+ 
+-add_subdirectory (src/shaders)
+-add_subdirectory (src/shaders/MaterialX)
+-
+ if (INSTALL_DOCS)
+ add_subdirectory (src/doc)
+ endif ()
