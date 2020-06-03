@@ -1,2 +1,6 @@
-.devcontainer/*
-.vscode/*
+# Folders
+**/.devcontainer/*
+**/.vscode/*
+
+# Files
+*.code-workspace

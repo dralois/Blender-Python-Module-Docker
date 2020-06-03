@@ -2,7 +2,7 @@
 
 ## Description
 
-This docker container builds Blender 2.82a as a python module, using CentOS 7 & devtoolset 6 (same as the official builds). The container comes completely setup for this task and compiles a portable version of Blender as a python module for Linux, able to be used on most distributions. The only requirement on the target system is python 3.7 (3.6 may work..), as the newest versions (>= 3.8) will segmentation fault on import. This container can optionally also build Appleseed 2.1.0 with python 3 bindings, which is required for the Blender addon. The Appleseed build script automatically downloads & builds Blenderseed and stores the addon in the output directory (/root/build). This step has to be invoked manually within the container.
+This docker container builds Blender 2.82a/2.83 as a python module, using CentOS 7 & devtoolset 6 (same as the official builds). The container comes completely setup for this task and compiles a portable version of Blender as a python module for Linux, able to be executed on most normal linux distributions. The requirement on the target system are python 3.7 (other versions may crash on import), libgomp (OpenMP) and mesa-GL (OpenGL). This container can optionally also build Appleseed 2.1.0 with python 3 bindings, which is required for the Blender addon. The Appleseed build script automatically downloads & builds Blenderseed and stores the addon in the output directory (/root/build). This step has to be invoked manually within the container.
 
 ## Usage
 
@@ -21,13 +21,20 @@ docker run -it --storage-opt size=35G dralois/blender-python-module-builder bash
 Then, either run the automatic build script
 
 ```bash
-# Builds deps, bpy
+# 0) Optionally switch to Blender v2.83
+export BLV=blender-v2.83-release
+
+# 1) Build bpy using the build script
 sh /usr/bin/build.sh
 ```
 
-Or build manually (-> Other builds are possible too!)
+Or build manually (-> Other builds are possible too!)    
+_Building manually may lead to compile errors and non-portable builds!_
 
 ```bash
+# 0) Optionally switch to Blender v2.83
+export BLV=blender-v2.83-release
+
 # 1) Go to Blender's source dir
 cd root/blender-git/
 
@@ -36,7 +43,7 @@ sh ./build_files/build_environment/install_deps.sh --with-all --build-all
 # 2b) For static builds (slower, portable):
 make deps
 
-# 3) Build Blender of your choice (bpy needs to be built without jemalloc!)
+# 3) Build Blender of your choice (bpy has to be built without jemalloc!)
 make [full] [lite] [bpy BUILD_CMAKE_ARGS="-D WITH_MEM_JEMALLOC=OFF"]
 ```
 

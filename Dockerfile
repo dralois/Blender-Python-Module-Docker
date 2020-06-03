@@ -6,33 +6,31 @@ ENV HOME /root
 WORKDIR $HOME
 USER root
 
+# Default build is 2.82a
+ENV BLV v2.82a
+# ENV BLV blender-v2.83-release
+
 # Init
 RUN su -
-RUN yum update -y \
- && yum clean all
+RUN yum -y update
+RUN yum -y upgrade
+RUN yum -y clean all
 
 # Basics
 RUN yum -y install centos-release-scl centos-release-scl-rh epel-release
 RUN yum -y groupinstall "Development Tools"
+RUN yum -y groups upgrade
 
-# Other deps
-RUN yum -y install wget
-RUN yum -y install make
+# General deps
 RUN yum -y install sudo
-RUN yum -y install yasm
 RUN yum -y install cmake3
-RUN yum -y install zlib-devel
-RUN yum -y install ilmbase-devel
-RUN yum -y install glibc-static
 RUN yum -y install python36
 RUN yum -y install python-setuptools
 
 # Blender deps
 RUN yum -y install tcl
+RUN yum -y install yasm
 RUN yum -y install expat-devel
-RUN yum -y install pugixml-devel
-RUN yum -y install pcre-devel
-RUN yum -y install alsa-lib-devel
 RUN yum -y install libXi-devel
 RUN yum -y install libXt-devel
 RUN yum -y install libX11-devel
@@ -40,11 +38,12 @@ RUN yum -y install libXrandr-devel
 RUN yum -y install libXinerama-devel
 RUN yum -y install libXcursor-devel
 RUN yum -y install mesa-libGLU-devel
+RUN yum -y install alsa-lib-devel
 RUN yum -y install pulseaudio-libs-devel
 RUN yum -y install jack-audio-connection-kit-devel
 
 # Cleanup
-RUN yum clean all
+RUN yum -y clean all
 
 # Use cmake3
 RUN alternatives --install /usr/local/bin/cmake cmake /usr/bin/cmake3 20 \
@@ -65,6 +64,7 @@ RUN cd $HOME/ \
  && scl enable devtoolset-6 "make default_target" \
  && cmake --install . --prefix /usr/ \
  && cp -f *.so /lib64/ \
+ && cp -f *.so /lib/ \
  && cd && rm -rf $HOME/tbb*
 
 # Install NASM
@@ -76,7 +76,7 @@ RUN curl -O https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.
  && make install \
  && cd && rm -rf $HOME/nasm-*
 
-# Get the source
+# Download blender source
 RUN mkdir $HOME/blender-git \
  && cd $HOME/blender-git \
  && git clone https://git.blender.org/blender.git \
@@ -87,20 +87,20 @@ RUN mkdir $HOME/blender-git \
 
 # Switch version
 RUN cd $HOME/blender-git/blender \
- && git checkout v2.82a \
- && git submodule foreach git checkout v2.82a
+ && git checkout $BLV \
+ && git submodule foreach git checkout $BLV
 
-# Appleseed & patch stuff
+# Copy patch etc. files
 RUN mkdir $HOME/patches
-COPY osl.diff $HOME/patches
-COPY versions.cmake $HOME/patches
-COPY user-config.jam $HOME/patches
-COPY blenderseed.package.configuration.xml $HOME/patches
+COPY *.cmake $HOME/patches
+COPY *.diff $HOME/patches
+COPY *.jam $HOME/patches
+COPY *.xml $HOME/patches
+COPY *.pc $HOME/patches
 
 # Create build command
-COPY build.sh /usr/bin/
-COPY appleseed.sh /usr/bin/
-CMD ["scl", "enable", "devtoolset-7", "/usr/bin/build.sh"]
+COPY *.sh /usr/bin/
+CMD ["scl", "enable", "devtoolset-6", "/usr/bin/build.sh"]
 
 # Mount the build folder
 RUN mkdir $HOME/build

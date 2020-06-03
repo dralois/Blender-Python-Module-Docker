@@ -13,21 +13,39 @@ fi
 
 # Basics
 yum -y update
+yum -y upgrade
 cd $HOME/blender-git/blender
 
-# Patch downloads sucking and other problems
-yes | patch -R $HOME/blender-git/blender/build_files/build_environment/cmake/versions.cmake < $HOME/patches/versions.diff
+# Make sure blender version can be built
+if [[ !($BLV =~ .*2.8(2|3).*) ]]; then
+    printf "Version $BLV not supported\n"
+    exit 0
+else
+    gitver=$(git status 2>&1)
+    # Switch tag/branch if necessary (stashing changes)
+    if [[ !($gitver =~ .*$BLV.*) ]]; then
+        printf "Repository not on branch, switching..\n"
+        git stash \
+         && git checkout $BLV \
+         && git submodule foreach git stash \
+         && git submodule foreach git checkout $BLV
+    fi
+fi
 
-# Patch OSL compilation bugs
-sed -i "s/-DUSE_PARTIO=OFF/-DUSE_PARTIO=OFF\n  -DUSE_QT=OFF/g"\
- $HOME/blender-git/blender/build_files/build_environment/cmake/osl.cmake
-sed -i "s/DOPENIMAGEIO_INCLUDES/DOPENIMAGEIO_INCLUDE_DIR/g"\
- $HOME/blender-git/blender/build_files/build_environment/cmake/osl.cmake
-cat $HOME/patches/osl.diff >> $HOME/blender-git/blender/build_files/build_environment/patches/osl.diff
+# Patch bugs & other problems, depending on version
+if [[ $BLV =~ .*2.82.* ]]; then
+    patch -f $HOME/blender-git/blender/build_files/build_environment/cmake/versions.cmake < $HOME/patches/versions.diff
+    cat $HOME/patches/osl.diff >> $HOME/blender-git/blender/build_files/build_environment/patches/osl.diff
+    cp $HOME/patches/zlib.pc /lib64/pkgconfig/
+elif [[ $BLV =~ .*2.83.* ]]; then
+    sed -i "s/ac504d5426945fe25dec1267e0c39d52/837b297bfe9c328152e9ce42c301d340/g"\
+     $HOME/blender-git/blender/build_files/build_environment/cmake/versions.cmake
+    cp $HOME/patches/zlib.pc /lib64/pkgconfig/
+fi
 
 # Build deps (may fail, just try again)
 for ((i=1;i<=10;i++)); do
-    make deps
+    make deps DEPS_INSTALL_DIR=$HOME/blender-git/lib/linux_centos7_x86_64 --quiet
     if [ "$?" -eq 0 ]; then
         break
     else
@@ -35,5 +53,46 @@ for ((i=1;i<=10;i++)); do
     fi
 done
 
+# Generate project, depending on version
+if [[ $BLV =~ .*2.82.* ]]; then
+    cmake -S ./ \
+    -B ../build_linux_bpy \
+    -C ./build_files/cmake/config/bpy_module.cmake \
+    -D CMAKE_INSTALL_PREFIX:STRING="/root/build/" \
+    -D CMAKE_MODULE_LINKER_FLAGS:STRING="-l:libgomp.so -lrt -static-libstdc++ -no-pie" \
+    -D LIBDIR:STRING="/root/blender-git/lib/linux_centos7_x86_64/" \
+    -D Boost_USE_STATIC_LIBS:BOOL=ON \
+    -D WITH_INSTALL_PORTABLE:BOOL=ON \
+    -D WITH_MEM_JEMALLOC:BOOL=OFF \
+    -D WITH_LINKER_GOLD:BOOL=ON \
+    -D WITH_SYSTEM_GLEW:BOOL=OFF \
+    -D WITH_HEADLESS:BOOL=ON \
+    -D WITH_OPENMP_STATIC:BOOL=OFF \
+    -D WITH_OPENMP:BOOL=ON \
+    -D WITH_STATIC_LIBS=ON \
+    -D WITH_CXX11_ABI=OFF \
+    -D WITH_USD=ON \
+    -Wno-dev
+elif [[ $BLV =~ .*2.83.* ]]; then
+    cmake -S ./ \
+    -B ../build_linux_bpy \
+    -C ./build_files/cmake/config/bpy_module.cmake \
+    -D CMAKE_INSTALL_PREFIX:STRING="/root/build/" \
+    -D CMAKE_MODULE_LINKER_FLAGS:STRING="-l:libgomp.so -lrt -static-libstdc++ -no-pie" \
+    -D LIBDIR:STRING="/root/blender-git/lib/linux_centos7_x86_64/" \
+    -D WITH_INSTALL_PORTABLE:BOOL=ON \
+    -D WITH_MEM_JEMALLOC:BOOL=OFF \
+    -D WITH_LINKER_GOLD:BOOL=ON \
+    -D WITH_HEADLESS:BOOL=ON \
+    -D WITH_OPENMP_STATIC:BOOL=OFF \
+    -D WITH_CXX11_ABI=OFF \
+    -Wno-dev
+fi
+
 # Build blender
-make bpy BUILD_CMAKE_ARGS="-D WITH_INSTALL_PORTABLE=ON -D CMAKE_INSTALL_PREFIX=/root/build/ -D WITH_MEM_JEMALLOC=OFF -D WITH_OPENMP=OFF -D WITH_OPENMP_STATIC=OFF"
+cd $HOME/blender-git/build_linux_bpy \
+ && make -j 16 --quiet && make install
+
+# Reset patches
+cd $HOME/blender-git/blender \
+ && git reset --hard
