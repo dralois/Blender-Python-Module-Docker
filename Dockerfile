@@ -92,7 +92,6 @@ RUN cd $HOME/blender-git/blender \
 
 # Copy patch etc. files
 RUN mkdir $HOME/patches
-COPY *.cmake $HOME/patches
 COPY *.diff $HOME/patches
 COPY *.jam $HOME/patches
 COPY *.xml $HOME/patches
