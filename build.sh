@@ -34,7 +34,7 @@ fi
 
 # Patch bugs & other problems, depending on version
 if [[ $BLV =~ .*2.82.* ]]; then
-    patch -f $HOME/blender-git/blender/build_files/build_environment/cmake/versions.cmake < $HOME/patches/versions.diff
+    patch -f $HOME/blender-git/blender/build_files/build_environment/cmake/versions.cmake < $HOME/patches/versions-282.diff
     cat $HOME/patches/osl.diff >> $HOME/blender-git/blender/build_files/build_environment/patches/osl.diff
     cp $HOME/patches/zlib.pc /lib64/pkgconfig/
 elif [[ $BLV =~ .*2.83.* ]]; then
