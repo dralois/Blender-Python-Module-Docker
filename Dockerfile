@@ -92,10 +92,10 @@ RUN cd $HOME/blender-git/blender \
 
 # Copy patch etc. files
 RUN mkdir $HOME/patches
-COPY *.diff $HOME/patches
-COPY *.jam $HOME/patches
-COPY *.xml $HOME/patches
-COPY *.pc $HOME/patches
+COPY *.diff $HOME/patches/
+COPY *.jam $HOME/patches/
+COPY *.xml $HOME/patches/
+COPY *.pc $HOME/patches/
 
 # Create build command
 COPY *.sh /usr/bin/
