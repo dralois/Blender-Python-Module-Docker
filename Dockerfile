@@ -8,7 +8,7 @@ USER root
 
 # Default build is 2.82a
 ENV BLV v2.82a
-# ENV BLV blender-v2.83-release
+# ENV BLV v2.83
 
 # Init
 RUN su -
@@ -94,8 +94,6 @@ RUN cd $HOME/blender-git/blender \
 RUN mkdir $HOME/patches
 COPY *.diff $HOME/patches/
 COPY *.jam $HOME/patches/
-COPY *.xml $HOME/patches/
-COPY *.pc $HOME/patches/
 
 # Create build command
 COPY *.sh /usr/bin/

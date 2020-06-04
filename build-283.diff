@@ -1,0 +1,12 @@
+diff -Naur ../build_environment_orig/cmake/versions.cmake ./cmake/versions.cmake
+--- ../build_environment_orig/cmake/versions.cmake	2020-06-04 17:26:15.446000100 +0000
++++ ./cmake/versions.cmake	2020-06-04 17:26:57.285724100 +0000
+@@ -301,7 +301,7 @@
+ 
+ set(EMBREE_VERSION 3.8.0)
+ set(EMBREE_URI https://github.com/embree/embree/archive/v${EMBREE_VERSION}.zip)
+-set(EMBREE_HASH ac504d5426945fe25dec1267e0c39d52)
++set(EMBREE_HASH 837b297bfe9c328152e9ce42c301d340)
+ 
+ set(USD_VERSION 19.11)
+ set(USD_URI https://github.com/PixarAnimationStudios/USD/archive/v${USD_VERSION}.tar.gz)
