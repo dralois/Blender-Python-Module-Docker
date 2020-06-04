@@ -95,5 +95,5 @@ cd $HOME/blender-git/build_linux_bpy \
 
 # Reset patches
 cd $HOME/blender-git/blender \
- && git reset --hard
+ && git reset --hard \
  && git clean -f
