@@ -1,0 +1,1190 @@
+diff -Naur ../build_environment_orig/cmake/boost.cmake ./cmake/boost.cmake
+--- ../build_environment_orig/cmake/boost.cmake	2020-06-08 14:35:53.850546800 +0000
++++ ./cmake/boost.cmake	2020-06-08 14:19:35.185333100 +0000
+@@ -61,8 +61,9 @@
+ endif()
+ 
+ set(BOOST_OPTIONS
++  --user-config=/root/patches/user-config.jam
++  --with-python
+   --with-filesystem
+-  --with-locale
+   --with-thread
+   --with-regex
+   --with-system
+@@ -70,8 +71,6 @@
+   --with-wave
+   --with-atomic
+   --with-serialization
+-  --with-program_options
+-  --with-iostreams
+   -sNO_BZIP2=1
+   -sNO_LZMA=1
+   -sNO_ZSTD=1
+@@ -92,3 +91,8 @@
+   BUILD_IN_SOURCE 1
+   INSTALL_COMMAND "${BOOST_HARVEST_CMD}"
+ )
++
++add_dependencies(
++  external_boost
++  external_python
++)
+diff -Naur ../build_environment_orig/cmake/clang.cmake ./cmake/clang.cmake
+--- ../build_environment_orig/cmake/clang.cmake	2020-06-08 14:35:53.875912600 +0000
++++ ./cmake/clang.cmake	2020-06-08 14:19:35.211332100 +0000
+@@ -24,12 +24,7 @@
+   -DLLVM_CONFIG=${LIBDIR}/llvm/bin/llvm-config
+ )
+ 
+-if(WIN32)
+-  set(CLANG_GENERATOR "Ninja")
+-else()
+-  set(CLANG_GENERATOR "Unix Makefiles")
+-endif()
+-
++set(CLANG_GENERATOR "Unix Makefiles")
+ 
+ ExternalProject_Add(external_clang
+   URL ${CLANG_URI}
+@@ -41,22 +36,6 @@
+   INSTALL_DIR ${LIBDIR}/clang
+ )
+ 
+-if(MSVC)
+-  if(BUILD_MODE STREQUAL Release)
+-    set(CLANG_HARVEST_COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/clang/ ${HARVEST_TARGET}/llvm/)
+-  else()
+-    set(CLANG_HARVEST_COMMAND
+-      ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/clang/lib/ ${HARVEST_TARGET}/llvm/debug/lib/ &&
+-      ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/clang/bin/ ${HARVEST_TARGET}/llvm/debug/bin/ &&
+-      ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/clang/include/ ${HARVEST_TARGET}/llvm/debug/include/
+-    )
+-  endif()
+-  ExternalProject_Add_Step(external_clang after_install
+-    COMMAND ${CLANG_HARVEST_COMMAND}
+-    DEPENDEES mkdir update patch download configure build install
+-  )
+-endif()
+-
+ add_dependencies(
+   external_clang
+   ll
+diff -Naur ../build_environment_orig/cmake/harvest.cmake ./cmake/harvest.cmake
+--- ../build_environment_orig/cmake/harvest.cmake	2020-06-08 14:35:53.990920400 +0000
++++ ./cmake/harvest.cmake	2020-06-08 14:19:35.330333300 +0000
+@@ -25,57 +25,6 @@
+ endif()
+ message("HARVEST_TARGET = ${HARVEST_TARGET}")
+ 
+-if(WIN32)
+-if(BUILD_MODE STREQUAL Release)
+-  add_custom_target(Harvest_Release_Results
+-    COMMAND # jpeg rename libfile + copy include
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/jpg/lib/jpeg-static.lib ${HARVEST_TARGET}/jpeg/lib/libjpeg.lib &&
+-        ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/jpg/include/ ${HARVEST_TARGET}/jpeg/include/ &&
+-        # OpenImageIO
+-        ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/OpenImageIO/include ${HARVEST_TARGET}/OpenImageIO/include &&
+-        ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/OpenImageIO/lib ${HARVEST_TARGET}/OpenImageIO/lib &&
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/OpenImageIO/bin/idiff.exe ${HARVEST_TARGET}/OpenImageIO/bin/idiff.exe &&
+-        # png
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/png/lib/libpng16_static.lib ${HARVEST_TARGET}/png/lib/libpng.lib &&
+-        ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/png/include/ ${HARVEST_TARGET}/png/include/ &&
+-        # freeglut-> opengl
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/freeglut/lib/freeglut_static.lib ${HARVEST_TARGET}/opengl/lib/freeglut_static.lib &&
+-        ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/freeglut/include/ ${HARVEST_TARGET}/opengl/include/ &&
+-        # glew-> opengl
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/glew/lib/libglew32.lib ${HARVEST_TARGET}/opengl/lib/glew.lib &&
+-        ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/glew/include/ ${HARVEST_TARGET}/opengl/include/ &&
+-        # sndfile
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/sndfile/lib/libsndfile.dll.a ${HARVEST_TARGET}/sndfile/lib/libsndfile-1.lib &&
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/sndfile/bin/libsndfile-1.dll ${HARVEST_TARGET}/sndfile/lib/libsndfile-1.dll &&
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/sndfile/include/sndfile.h ${HARVEST_TARGET}/sndfile/include/sndfile.h &&
+-        # tiff
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/tiff/lib/tiff.lib ${HARVEST_TARGET}/tiff/lib/libtiff.lib &&
+-        ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/tiff/include/ ${HARVEST_TARGET}/tiff/include/ &&
+-        # hidapi
+-        ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/hidapi/ ${HARVEST_TARGET}/hidapi/
+-    DEPENDS
+-  )
+-endif()
+-
+-if(BUILD_MODE STREQUAL Debug)
+-  add_custom_target(Harvest_Debug_Results
+-        # OpenImageIO
+-    COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/openimageio/lib/OpenImageIO.lib ${HARVEST_TARGET}/openimageio/lib/OpenImageIO_d.lib &&
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/openimageio/lib/OpenImageIO_Util.lib ${HARVEST_TARGET}/openimageio/lib/OpenImageIO_Util_d.lib &&
+-        # python
+-        ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/python/ ${HARVEST_TARGET}/python/ &&
+-        # hdf5
+-        ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/hdf5/lib ${HARVEST_TARGET}/hdf5/lib &&
+-        # numpy
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/python${PYTHON_SHORT_VERSION_NO_DOTS}_numpy_${NUMPY_SHORT_VERSION}d.tar.gz ${HARVEST_TARGET}/Release/python${PYTHON_SHORT_VERSION_NO_DOTS}_numpy_${NUMPY_SHORT_VERSION}d.tar.gz &&
+-        # python
+-        ${CMAKE_COMMAND} -E copy ${LIBDIR}/python${PYTHON_SHORT_VERSION_NO_DOTS}_d.tar.gz ${HARVEST_TARGET}/Release/python${PYTHON_SHORT_VERSION_NO_DOTS}_d.tar.gz
+-    DEPENDS Package_Python
+-  )
+-endif()
+-
+-else(WIN32)
+-
+ function(harvest from to)
+   set(pattern "")
+   foreach(f ${ARGN})
+@@ -102,53 +51,17 @@
+   endif()
+ endfunction()
+ 
+-harvest(alembic/include alembic/include "*.h")
+-harvest(alembic/lib/libAlembic.a alembic/lib/libAlembic.a)
+-harvest(alembic/bin alembic/bin "*")
+ harvest(boost/include boost/include "*")
+ harvest(boost/lib boost/lib "*.a")
+-harvest(ffmpeg/include ffmpeg/include "*.h")
+-harvest(ffmpeg/lib ffmpeg/lib "*.a")
+-harvest(fftw3/include fftw3/include "*.h")
+-harvest(fftw3/lib fftw3/lib "*.a")
+-harvest(flac/lib sndfile/lib "libFLAC.a")
+-harvest(freetype/include freetype/include "*.h")
+-harvest(freetype/lib/libfreetype2ST.a freetype/lib/libfreetype.a)
+-harvest(glew/include glew/include "*.h")
+-harvest(glew/lib glew/lib "*.a")
+-harvest(jemalloc/include jemalloc/include "*.h")
+-harvest(jemalloc/lib jemalloc/lib "*.a")
+ harvest(jpg/include jpeg/include "*.h")
+ harvest(jpg/lib jpeg/lib "libjpeg.a")
+-harvest(lame/lib ffmpeg/lib "*.a")
+ harvest(clang/bin llvm/bin "clang-format")
+ harvest(clang/include llvm/include "*")
+ harvest(llvm/include llvm/include "*")
+ harvest(llvm/bin llvm/bin "llvm-config")
+ harvest(llvm/lib llvm/lib "libLLVM*.a")
+-if(APPLE)
+-  harvest(openmp/lib openmp/lib "*")
+-  harvest(openmp/include openmp/include "*.h")
+-endif()
+-harvest(ogg/lib ffmpeg/lib "*.a")
+-harvest(openal/include openal/include "*.h")
+-if(UNIX AND NOT APPLE)
+-  harvest(openal/lib openal/lib "*.a")
+-
+-  harvest(blosc/include blosc/include "*.h")
+-  harvest(blosc/lib blosc/lib "*.a")
+-
+-  harvest(zlib/include zlib/include "*.h")
+-  harvest(zlib/lib zlib/lib "*.a")
+-
+-  harvest(xml2/include xml2/include "*.h")
+-  harvest(xml2/lib xml2/lib "*.a")
+-else()
+-  harvest(blosc/lib openvdb/lib "*.a")
+-  harvest(xml2/lib opencollada/lib "*.a")
+-endif()
+-harvest(opencollada/include/opencollada opencollada/include "*.h")
+-harvest(opencollada/lib/opencollada opencollada/lib "*.a")
++harvest(zlib/include zlib/include "*.h")
++harvest(zlib/lib zlib/lib "*.a")
+ harvest(opencolorio/include opencolorio/include "*.h")
+ harvest(opencolorio/lib opencolorio/lib "*.a")
+ harvest(opencolorio/lib/static opencolorio/lib "*.a")
+@@ -159,15 +72,7 @@
+ harvest(openimageio/bin openimageio/bin "oiiotool")
+ harvest(openimageio/include openimageio/include "*")
+ harvest(openimageio/lib openimageio/lib "*.a")
+-harvest(openimagedenoise/include openimagedenoise/include "*")
+-harvest(openimagedenoise/lib openimagedenoise/lib "*.a")
+-harvest(openjpeg/include/openjpeg-2.3 openjpeg/include "*.h")
+-harvest(openjpeg/lib openjpeg/lib "*.a")
+-harvest(opensubdiv/include opensubdiv/include "*.h")
+-harvest(opensubdiv/lib opensubdiv/lib "*.a")
+-harvest(openvdb/include/openvdb openvdb/include/openvdb "*.h")
+-harvest(openvdb/lib openvdb/lib "*.a")
+-harvest(osl/bin osl/bin "oslc")
++harvest(osl/bin osl/bin "*")
+ harvest(osl/include osl/include "*.h")
+ harvest(osl/lib osl/lib "*.a")
+ harvest(osl/shaders osl/shaders "*.h")
+@@ -176,32 +81,11 @@
+ harvest(python/bin python/bin "python${PYTHON_SHORT_VERSION}m")
+ harvest(python/include python/include "*h")
+ harvest(python/lib python/lib "*")
+-harvest(sdl/include/SDL2 sdl/include "*.h")
+-harvest(sdl/lib sdl/lib "libSDL2.a")
+-harvest(sndfile/include sndfile/include "*.h")
+-harvest(sndfile/lib sndfile/lib "*.a")
+-harvest(spnav/include spnav/include "*.h")
+-harvest(spnav/lib spnav/lib "*.a")
+ harvest(tbb/include tbb/include "*.h")
+ harvest(tbb/lib/libtbb_static.a tbb/lib/libtbb.a)
+-harvest(theora/lib ffmpeg/lib "*.a")
++harvest(tbb/lib/libtbbmalloc_static.a tbb/lib/libtbbmalloc.a)
++harvest(tbb/lib tbb/lib "*.so")
+ harvest(tiff/include tiff/include "*.h")
+ harvest(tiff/lib tiff/lib "*.a")
+-harvest(vorbis/lib ffmpeg/lib "*.a")
+-harvest(opus/lib ffmpeg/lib "*.a")
+-harvest(vpx/lib ffmpeg/lib "*.a")
+-harvest(webp/lib ffmpeg/lib "*.a")
+-harvest(x264/lib ffmpeg/lib "*.a")
+-harvest(xvidcore/lib ffmpeg/lib "*.a")
+ harvest(embree/include embree/include "*.h")
+ harvest(embree/lib embree/lib "*.a")
+-harvest(usd/include usd/include "*.h")
+-harvest(usd/lib/usd usd/lib/usd "*")
+-harvest(usd/plugin usd/plugin "*")
+-
+-if(UNIX AND NOT APPLE)
+-  harvest(libglu/lib mesa/lib "*.so*")
+-  harvest(mesa/lib mesa/lib "*.so*")
+-endif()
+-
+-endif()
+diff -Naur ../build_environment_orig/cmake/llvm.cmake ./cmake/llvm.cmake
+--- ../build_environment_orig/cmake/llvm.cmake	2020-06-08 14:35:54.065920200 +0000
++++ ./cmake/llvm.cmake	2020-06-08 14:19:35.408332800 +0000
+@@ -20,16 +20,15 @@
+   -DLLVM_USE_CRT_RELEASE=MD
+   -DLLVM_USE_CRT_DEBUG=MDd
+   -DLLVM_INCLUDE_TESTS=OFF
+-  -DLLVM_TARGETS_TO_BUILD=X86
++  -DLLVM_TARGETS_TO_BUILD=X86;NVPTX;
+   -DLLVM_INCLUDE_EXAMPLES=OFF
+   -DLLVM_ENABLE_TERMINFO=OFF
++  -DLLVM_REQUIRES_RTTI=ON
++  -DLLVM_BUILD_LLVM_C_DYLIB=OFF
++  -DLLVM_ENABLE_UNWIND_TABLES=OFF
+ )
+ 
+-if(WIN32)
+-  set(LLVM_GENERATOR "Ninja")
+-else()
+-  set(LLVM_GENERATOR "Unix Makefiles")
+-endif()
++set(LLVM_GENERATOR "Unix Makefiles")
+ 
+ # short project name due to long filename issues on windows
+ ExternalProject_Add(ll
+@@ -41,18 +40,3 @@
+   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/llvm ${DEFAULT_CMAKE_FLAGS} ${LLVM_EXTRA_ARGS}
+   INSTALL_DIR ${LIBDIR}/llvm
+ )
+-
+-if(MSVC)
+-  if(BUILD_MODE STREQUAL Release)
+-    set(LLVM_HARVEST_COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/llvm/ ${HARVEST_TARGET}/llvm/ )
+-  else()
+-    set(LLVM_HARVEST_COMMAND
+-      ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/llvm/lib/ ${HARVEST_TARGET}/llvm/debug/lib/ &&
+-      ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/llvm/include/ ${HARVEST_TARGET}/llvm/debug/include/
+-    )
+-  endif()
+-  ExternalProject_Add_Step(ll after_install
+-    COMMAND ${LLVM_HARVEST_COMMAND}
+-    DEPENDEES mkdir update patch download configure build install
+-  )
+-endif()
+diff -Naur ../build_environment_orig/cmake/openimageio.cmake ./cmake/openimageio.cmake
+--- ../build_environment_orig/cmake/openimageio.cmake	2020-06-08 14:35:54.149921100 +0000
++++ ./cmake/openimageio.cmake	2020-06-08 14:19:35.488936600 +0000
+@@ -32,7 +32,7 @@
+ 
+ if(WIN32)
+   set(PNG_LIBNAME libpng16_static${LIBEXT})
+-  set(OIIO_SIMD_FLAGS -DUSE_SIMD=sse2 -DOPJ_STATIC=1)
++  set(OIIO_SIMD_FLAGS -DUSE_SIMD=sse2)
+   set(OPENJPEG_POSTFIX _msvc)
+ else()
+   set(PNG_LIBNAME libpng${LIBEXT})
+@@ -49,23 +49,17 @@
+ 
+ if(MSVC)
+   set(OPENJPEG_FLAGS
+-    -DOPENJPEG_HOME=${LIBDIR}/openjpeg_msvc
+-    -DOPENJPEG_INCLUDE_DIR=${LIBDIR}/openjpeg_msvc/include/openjpeg-${OPENJPEG_SHORT_VERSION}
+-    -DOPENJPEG_LIBRARY=${LIBDIR}/openjpeg_msvc/lib/openjp2${LIBEXT}
+-    -DOPENJPEG_LIBRARY_DEBUG=${LIBDIR}/openjpeg_msvc/lib/openjp2${LIBEXT}
++    -DOpenJpeg_ROOT=${LIBDIR}/openjpeg_msvc
+   )
+ else()
+   set(OPENJPEG_FLAGS
+-    -DOPENJPEG_INCLUDE_DIR=${LIBDIR}/openjpeg/include/openjpeg-${OPENJPEG_SHORT_VERSION}
+-    -DOPENJPEG_LIBRARY=${LIBDIR}/openjpeg/lib/${OPENJPEG_LIBRARY}
++    -DOpenJpeg_ROOT=${LIBDIR}/openjpeg
+   )
+ endif()
+ 
+ set(OPENIMAGEIO_EXTRA_ARGS
+-  -DBUILDSTATIC=ON
++  -DBUILD_SHARED_LIBS=OFF
+   ${OPENIMAGEIO_LINKSTATIC}
+-  -DOPENEXR_INCLUDE_DIR=${LIBDIR}/openexr/include/openexr/
+-  -DOPENEXR_ILMIMF_LIBRARIES=${LIBDIR}/openexr/lib/IlmImf${OPENEXR_VERSION_POSTFIX}${LIBEXT}
+   -DBoost_COMPILER:STRING=${BOOST_COMPILER_STRING}
+   -DBoost_USE_MULTITHREADED=ON
+   -DBoost_USE_STATIC_LIBS=ON
+@@ -73,7 +67,16 @@
+   -DBOOST_ROOT=${LIBDIR}/boost
+   -DBOOST_LIBRARYDIR=${LIBDIR}/boost/lib/
+   -DBoost_NO_SYSTEM_PATHS=ON
++  -DBoost_NO_BOOST_CMAKE=ON
+   -OIIO_BUILD_CPP11=ON
++  -DUSE_LIBSQUISH=OFF
++  -DUSE_QT5=OFF
++  -DUSE_NUKE=OFF
++  -DUSE_OPENVDB=OFF
++  -DUSE_BZIP2=OFF
++  -DUSE_FREETYPE=OFF
++  -DUSE_DCMTK=OFF
++  -DUSE_LIBHEIF=OFF
+   -DUSE_OPENGL=OFF
+   -DUSE_TBB=OFF
+   -DUSE_FIELD3D=OFF
+@@ -81,15 +84,12 @@
+   -DUSE_PYTHON=OFF
+   -DUSE_GIF=OFF
+   -DUSE_OPENCV=OFF
+-  -DUSE_OPENSSL=OFF
+-  -DUSE_OPENJPEG=ON
++  -DUSE_OPENJPEG=OFF
+   -DUSE_FFMPEG=OFF
+   -DUSE_PTEX=OFF
+   -DUSE_FREETYPE=OFF
+   -DUSE_LIBRAW=OFF
+-  -DUSE_PYTHON=OFF
+-  -DUSE_PYTHON3=OFF
+-  -DUSE_OCIO=OFF
++  -DUSE_OPENCOLORIO=OFF
+   -DUSE_WEBP=${WITH_WEBP}
+   -DOIIO_BUILD_TOOLS=${OIIO_TOOLS}
+   -DOIIO_BUILD_TESTS=OFF
+@@ -103,17 +103,13 @@
+   -DJPEG_LIBRARY=${LIBDIR}/jpg/lib/${JPEG_LIBRARY}
+   -DJPEG_INCLUDE_DIR=${LIBDIR}/jpg/include
+   ${OPENJPEG_FLAGS}
+-  -DOCIO_PATH=${LIBDIR}/opencolorio/
+   -DOpenEXR_USE_STATIC_LIBS=On
+-  -DOPENEXR_HOME=${LIBDIR}/openexr/
+-  -DILMBASE_INCLUDE_PATH=${LIBDIR}/openexr/
+-  -DILMBASE_PACKAGE_PREFIX=${LIBDIR}/openexr/
+   -DILMBASE_INCLUDE_DIR=${LIBDIR}/openexr/include/
++  -DOPENEXR_INCLUDE_DIR=${LIBDIR}/openexr/include/
+   -DOPENEXR_HALF_LIBRARY=${LIBDIR}/openexr/lib/${LIBPREFIX}Half${OPENEXR_VERSION_POSTFIX}${LIBEXT}
+   -DOPENEXR_IMATH_LIBRARY=${LIBDIR}/openexr/lib/${LIBPREFIX}Imath${OPENEXR_VERSION_POSTFIX}${LIBEXT}
+   -DOPENEXR_ILMTHREAD_LIBRARY=${LIBDIR}/openexr/lib/${LIBPREFIX}IlmThread${OPENEXR_VERSION_POSTFIX}${LIBEXT}
+   -DOPENEXR_IEX_LIBRARY=${LIBDIR}/openexr/lib/${LIBPREFIX}Iex${OPENEXR_VERSION_POSTFIX}${LIBEXT}
+-  -DOPENEXR_INCLUDE_DIR=${LIBDIR}/openexr/include/
+   -DOPENEXR_ILMIMF_LIBRARY=${LIBDIR}/openexr/lib/${LIBPREFIX}IlmImf${OPENEXR_VERSION_POSTFIX}${LIBEXT}
+   -DSTOP_ON_WARNING=OFF
+   ${WEBP_FLAGS}
+@@ -125,27 +121,37 @@
+   DOWNLOAD_DIR ${DOWNLOAD_DIR}
+   URL_HASH MD5=${OPENIMAGEIO_HASH}
+   PREFIX ${BUILD_DIR}/openimageio
+-  PATCH_COMMAND
+-    ${PATCH_CMD} -p 0 -N -d ${BUILD_DIR}/openimageio/src/external_openimageio/src/include < ${PATCH_DIR}/openimageio_gdi.diff &&
+-    ${PATCH_CMD} -p 1 -N -d ${BUILD_DIR}/openimageio/src/external_openimageio/ < ${PATCH_DIR}/openimageio_static_libs.diff
++  PATCH_COMMAND ${PATCH_CMD} -p 1 -N -d ${BUILD_DIR}/openimageio/src/external_openimageio/ < ${PATCH_DIR}/openimageio.diff
+   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/openimageio ${DEFAULT_CMAKE_FLAGS} ${OPENIMAGEIO_EXTRA_ARGS}
+   INSTALL_DIR ${LIBDIR}/openimageio
+ )
+ 
+ add_dependencies(
+   external_openimageio
+-  external_png external_zlib
++  external_png
++  external_zlib
+   external_openexr
+   external_jpeg
+   external_boost
+   external_tiff
+-  external_opencolorio
+-  external_openjpeg${OPENJPEG_POSTFIX}
+   ${WEBP_DEP}
+ )
+-if(NOT WIN32)
+-  add_dependencies(
+-    external_openimageio
+-    external_opencolorio_extra
+-  )
++
++if(WIN32)
++  if(BUILD_MODE STREQUAL Release)
++    ExternalProject_Add_Step(external_openimageio after_install
++      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/OpenImageIO/include ${HARVEST_TARGET}/OpenImageIO/include
++      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/OpenImageIO/lib ${HARVEST_TARGET}/OpenImageIO/lib
++      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/OpenImageIO/bin/idiff.exe ${HARVEST_TARGET}/OpenImageIO/bin/idiff.exe
++
++      DEPENDEES install
++    )
++  endif()
++  if(BUILD_MODE STREQUAL Debug)
++    ExternalProject_Add_Step(external_openimageio after_install
++      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/openimageio/lib/OpenImageIO.lib ${HARVEST_TARGET}/openimageio/lib/OpenImageIO_d.lib
++      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/openimageio/lib/OpenImageIO_Util.lib ${HARVEST_TARGET}/openimageio/lib/OpenImageIO_Util_d.lib
++      DEPENDEES install
++    )
++  endif()
+ endif()
+diff -Naur ../build_environment_orig/cmake/osl.cmake ./cmake/osl.cmake
+--- ../build_environment_orig/cmake/osl.cmake	2020-06-08 14:35:54.208919600 +0000
++++ ./cmake/osl.cmake	2020-06-08 14:19:35.548937100 +0000
+@@ -18,7 +18,7 @@
+ 
+ if(WIN32)
+   set(OSL_CMAKE_CXX_STANDARD_LIBRARIES "kernel32${LIBEXT} user32${LIBEXT} gdi32${LIBEXT} winspool${LIBEXT} shell32${LIBEXT} ole32${LIBEXT} oleaut32${LIBEXT} uuid${LIBEXT} comdlg32${LIBEXT} advapi32${LIBEXT} psapi${LIBEXT}")
+-  set(OSL_FLEX_BISON -DFLEX_EXECUTABLE=${LIBDIR}/flexbison/win_flex.exe -DFLEX_EXTRA_OPTIONS="--wincompat" -DBISON_EXECUTABLE=${LIBDIR}/flexbison/win_bison.exe)
++  set(OSL_FLEX_BISON -DFLEX_EXECUTABLE=${LIBDIR}/flexbison/win_flex.exe -DBISON_EXECUTABLE=${LIBDIR}/flexbison/win_bison.exe)
+   set(OSL_OPENIMAGEIO_LIBRARY "${LIBDIR}/openimageio/lib/${LIBPREFIX}OpenImageIO${LIBEXT};${LIBDIR}/openimageio/lib/${LIBPREFIX}OpenImageIO_Util${LIBEXT};${LIBDIR}/png/lib/libpng16${LIBEXT};${LIBDIR}/jpg/lib/${LIBPREFIX}jpeg${LIBEXT};${LIBDIR}/tiff/lib/${LIBPREFIX}tiff${LIBEXT};${LIBDIR}/openexr/lib/${LIBPREFIX}IlmImf${OPENEXR_VERSION_POSTFIX}${LIBEXT}")
+   if("${CMAKE_SIZEOF_VOID_P}" EQUAL "4")
+     set(OSL_SIMD_FLAGS -DOIIO_NOSIMD=1 -DOIIO_SIMD=0)
+@@ -44,6 +44,7 @@
+   -DBOOST_ROOT=${LIBDIR}/boost
+   -DBOOST_LIBRARYDIR=${LIBDIR}/boost/lib/
+   -DBoost_NO_SYSTEM_PATHS=ON
++  -DBoost_NO_BOOST_CMAKE=ON
+   -DLLVM_DIRECTORY=${LIBDIR}/llvm
+   -DLLVM_INCLUDES=${LIBDIR}/llvm/include
+   -DLLVM_LIB_DIR=${LIBDIR}/llvm/lib
+@@ -59,19 +60,22 @@
+   -DOPENEXR_INCLUDE_DIR=${LIBDIR}/openexr/include/
+   -DOPENEXR_ILMIMF_LIBRARY=${LIBDIR}/openexr/lib/${LIBPREFIX}IlmImf${OPENEXR_VERSION_POSTFIX}${LIBEXT}
+   -DOSL_BUILD_TESTS=OFF
++  -DOSL_BUILD_MATERIALX=OFF
+   -DZLIB_LIBRARY=${LIBDIR}/zlib/lib/${ZLIB_LIBRARY}
+   -DZLIB_INCLUDE_DIR=${LIBDIR}/zlib/include/
+   -DOPENIMAGEIOHOME=${LIBDIR}/openimageio/
++  -DOPENIMAGEIO_INCLUDE_DIR=${LIBDIR}/openimageio/include
+   -DOPENIMAGEIO_LIBRARY=${OSL_OPENIMAGEIO_LIBRARY}
+-  -DOPENIMAGEIO_INCLUDES=${LIBDIR}/openimageio/include
+   ${OSL_FLEX_BISON}
+   -DCMAKE_CXX_STANDARD_LIBRARIES=${OSL_CMAKE_CXX_STANDARD_LIBRARIES}
+   -DBUILDSTATIC=ON
++  -DENABLERTTI=ON
+   ${OSL_PLATFORM_FLAGS}
+   -DOSL_BUILD_PLUGINS=Off
+   -DSTOP_ON_WARNING=OFF
+   -DUSE_LLVM_BITCODE=OFF
+   -DUSE_PARTIO=OFF
++  -DUSE_QT=OFF
+   ${OSL_SIMD_FLAGS}
+   -DPARTIO_LIBRARIES=
+ )
+@@ -108,7 +112,6 @@
+   external_clang
+   external_openexr
+   external_zlib
+-  external_flexbison
+   external_openimageio
+ )
+ 
+diff -Naur ../build_environment_orig/cmake/tbb.cmake ./cmake/tbb.cmake
+--- ../build_environment_orig/cmake/tbb.cmake	2020-06-08 14:35:54.347920500 +0000
++++ ./cmake/tbb.cmake	2020-06-08 14:19:35.891943700 +0000
+@@ -15,21 +15,13 @@
+ # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ #
+ # ***** END GPL LICENSE BLOCK *****
+-if(WIN32)
+-  set(TBB_EXTRA_ARGS
+-    -DTBB_BUILD_SHARED=On
+-    -DTBB_BUILD_TBBMALLOC=On
+-    -DTBB_BUILD_TBBMALLOC_PROXY=On
+-    -DTBB_BUILD_STATIC=On
++
++set(TBB_EXTRA_ARGS
++  -DTBB_BUILD_SHARED=ON
++  -DTBB_BUILD_TBBMALLOC=ON
++  -DTBB_BUILD_TBBMALLOC_PROXY=OFF
++  -DTBB_BUILD_STATIC=ON
+ )
+-else()
+-  set(TBB_EXTRA_ARGS
+-    -DTBB_BUILD_SHARED=Off
+-    -DTBB_BUILD_TBBMALLOC=On
+-    -DTBB_BUILD_TBBMALLOC_PROXY=Off
+-    -DTBB_BUILD_STATIC=On
+-  )
+-endif()
+ 
+ # CMake script for TBB from https://github.com/wjakob/tbb/blob/master/CMakeLists.txt
+ ExternalProject_Add(external_tbb
+@@ -38,30 +30,7 @@
+   URL_HASH MD5=${TBB_HASH}
+   PREFIX ${BUILD_DIR}/tbb
+   PATCH_COMMAND COMMAND ${CMAKE_COMMAND} -E copy ${PATCH_DIR}/cmakelists_tbb.txt ${BUILD_DIR}/tbb/src/external_tbb/CMakeLists.txt &&
+-  ${CMAKE_COMMAND} -E copy ${BUILD_DIR}/tbb/src/external_tbb/build/vs2013/version_string.ver ${BUILD_DIR}/tbb/src/external_tbb/src/tbb/version_string.ver
++  ${CMAKE_COMMAND} -E copy ${BUILD_DIR}/tbb/src/external_tbb/build/vs2012/version_string.ver ${BUILD_DIR}/tbb/src/external_tbb/src/tbb/version_string.ver
+   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/tbb ${DEFAULT_CMAKE_FLAGS} ${TBB_EXTRA_ARGS}
+   INSTALL_DIR ${LIBDIR}/tbb
+ )
+-
+-if(WIN32)
+-  if(BUILD_MODE STREQUAL Release)
+-    ExternalProject_Add_Step(external_tbb after_install
+-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/tbb/lib/tbb_static.lib ${HARVEST_TARGET}/tbb/lib/tbb.lib
+-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/tbb/lib/tbbmalloc.lib ${HARVEST_TARGET}/tbb/lib/tbbmalloc.lib
+-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/tbb/lib/tbbmalloc.dll ${HARVEST_TARGET}/tbb/lib/tbbmalloc.dll
+-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/tbb/lib/tbbmalloc_proxy.lib ${HARVEST_TARGET}/tbb/lib/tbbmalloc_proxy.lib
+-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/tbb/lib/tbbmalloc_proxy.dll ${HARVEST_TARGET}/tbb/lib/tbbmalloc_proxy.dll
+-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/tbb/include/ ${HARVEST_TARGET}/tbb/include/
+-      DEPENDEES install
+-    )
+-  endif()
+-  if(BUILD_MODE STREQUAL Debug)
+-    ExternalProject_Add_Step(external_tbb after_install
+-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/tbb/lib/tbb_static.lib ${HARVEST_TARGET}/tbb/lib/tbb_debug.lib
+-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/tbb/lib/tbbmalloc_proxy.lib ${HARVEST_TARGET}/tbb/lib/tbbmalloc_proxy_debug.lib
+-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/tbb/lib/tbbmalloc.dll ${HARVEST_TARGET}/tbb/lib/debug/tbbmalloc.dll
+-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/tbb/lib/tbbmalloc_proxy.dll ${HARVEST_TARGET}/tbb/lib/debug/tbbmalloc_proxy.dll
+-      DEPENDEES install
+-    )
+-  endif()
+-endif()
+diff -Naur ../build_environment_orig/cmake/versions.cmake ./cmake/versions.cmake
+--- ../build_environment_orig/cmake/versions.cmake	2020-06-08 14:35:54.389920900 +0000
++++ ./cmake/versions.cmake	2020-06-08 14:19:35.933944000 +0000
+@@ -20,17 +20,13 @@
+ set(ZLIB_URI https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz)
+ set(ZLIB_HASH 1c9f62f0778697a09d36121ead88e08e)
+ 
+-set(OPENAL_VERSION 1.18.2)
+-set(OPENAL_URI http://openal-soft.org/openal-releases/openal-soft-${OPENAL_VERSION}.tar.bz2)
+-set(OPENAL_HASH d4eeb0889812e2fdeaa1843523d76190)
+-
+-set(PNG_VERSION 1.6.35)
++set(PNG_VERSION 1.6.36)
+ set(PNG_URI http://prdownloads.sourceforge.net/libpng/libpng-${PNG_VERSION}.tar.xz)
+-set(PNG_HASH 678b7e696a62a193ed3503b04bf449d6)
++set(PNG_HASH df2be2d29c40937fe1f5349b16bc2826)
+ 
+-set(JPEG_VERSION 1.5.3)
++set(JPEG_VERSION 1.5.2)
+ set(JPEG_URI https://github.com/libjpeg-turbo/libjpeg-turbo/archive/${JPEG_VERSION}.tar.gz)
+-set(JPEG_HASH 5b7549d440b86c98a517355c102d155e)
++set(JPEG_HASH 36225e751a0934e8681a982024486d6c)
+ 
+ set(BOOST_VERSION 1.70.0)
+ set(BOOST_VERSION_NODOTS 1_70_0)
+@@ -38,106 +34,34 @@
+ set(BOOST_URI https://dl.bintray.com/boostorg/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_NODOTS}.tar.gz)
+ set(BOOST_HASH fea771fe8176828fabf9c09242ee8c26)
+ 
+-# Using old version as recommended by OpenVDB build documentation.
+-set(BLOSC_VERSION 1.5.0)
+-set(BLOSC_URI https://github.com/Blosc/c-blosc/archive/v${BLOSC_VERSION}.tar.gz)
+-set(BLOSC_HASH 6e4a49c8c06f05aa543f3312cfce3d55)
+-
+-set(PTHREADS_VERSION 3.0.0)
+-set(PTHREADS_URI http://sourceforge.mirrorservice.org/p/pt/pthreads4w/pthreads4w-code-v${PTHREADS_VERSION}.zip)
+-set(PTHREADS_HASH f3bf81bb395840b3446197bcf4ecd653)
+-
+ set(OPENEXR_VERSION 2.4.0)
+ set(OPENEXR_URI https://github.com/AcademySoftwareFoundation/openexr/archive/v${OPENEXR_VERSION}.tar.gz)
+ set(OPENEXR_HASH 9e4d69cf2a12c6fb19b98af7c5e0eaee)
+-if(WIN32)
+-  # Openexr started appending _d on its own so now
+-  # we need to tell the build the postfix is _s while
+-  # telling all other deps the postfix is _s_d
+-  if(BUILD_MODE STREQUAL Release)
+-    set(OPENEXR_VERSION_POSTFIX _s)
+-    set(OPENEXR_VERSION_BUILD_POSTFIX _s)
+-  else()
+-    set(OPENEXR_VERSION_POSTFIX _s_d)
+-    set(OPENEXR_VERSION_BUILD_POSTFIX _s)
+-  endif()
+-else()
+-  set(OPENEXR_VERSION_BUILD_POSTFIX)
+-  set(OPENEXR_VERSION_POSTFIX)
+-endif()
+-
+-set(FREETYPE_VERSION 2.9.1)
+-set(FREETYPE_URI http://prdownloads.sourceforge.net/freetype/freetype-${FREETYPE_VERSION}.tar.gz)
+-set(FREETYPE_HASH 3adb0e35d3c100c456357345ccfa8056)
+-
+-set(GLEW_VERSION 1.13.0)
+-set(GLEW_URI http://prdownloads.sourceforge.net/glew/glew/${GLEW_VERSION}/glew-${GLEW_VERSION}.tgz)
+-set(GLEW_HASH 7cbada3166d2aadfc4169c4283701066)
+-
+-set(FREEGLUT_VERSION 3.0.0)
+-set(FREEGLUT_URI http://pilotfiber.dl.sourceforge.net/project/freeglut/freeglut/${FREEGLUT_VERSION}/freeglut-${FREEGLUT_VERSION}.tar.gz)
+-set(FREEGLUT_HASH 90c3ca4dd9d51cf32276bc5344ec9754)
+-
+-set(HDF5_VERSION 1.8.17)
+-set(HDF5_URI https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-${HDF5_VERSION}/src/hdf5-${HDF5_VERSION}.tar.gz)
+-set(HDF5_HASH 7d572f8f3b798a628b8245af0391a0ca)
+-
+-set(ALEMBIC_VERSION 1.7.12)
+-set(ALEMBIC_URI https://github.com/alembic/alembic/archive/${ALEMBIC_VERSION}.tar.gz)
+-set(ALEMBIC_MD5 e2b3777f23c5c09481a008cc6f0f8a40)
+-
+-# hash is for 3.1.2
+-set(GLFW_GIT_UID 30306e54705c3adae9fe082c816a3be71963485c)
+-set(GLFW_URI https://github.com/glfw/glfw/archive/${GLFW_GIT_UID}.zip)
+-set(GLFW_HASH 20cacb1613da7eeb092f3ac4f6b2b3d0)
+-
+-# latest uid in git as of 2016-04-01
+-set(CLEW_GIT_UID 277db43f6cafe8b27c6f1055f69dc67da4aeb299)
+-set(CLEW_URI https://github.com/OpenCLWrangler/clew/archive/${CLEW_GIT_UID}.zip)
+-set(CLEW_HASH 2c699d10ed78362e71f56fae2a4c5f98)
+-
+-# latest uid in git as of 2016-04-01
+-set(CUEW_GIT_UID 1744972026de9cf27c8a7dc39cf39cd83d5f922f)
+-set(CUEW_URI https://github.com/CudaWrangler/cuew/archive/${CUEW_GIT_UID}.zip)
+-set(CUEW_HASH 86760d62978ebfd96cd93f5aa1abaf4a)
+-
+-set(OPENSUBDIV_VERSION v3_4_0_RC2)
+-set(OPENSUBDIV_Hash f6a10ba9efaa82fde86fe65aad346319)
+-set(OPENSUBDIV_URI https://github.com/PixarAnimationStudios/OpenSubdiv/archive/${OPENSUBDIV_VERSION}.tar.gz)
+-
+-set(SDL_VERSION 2.0.8)
+-set(SDL_URI https://www.libsdl.org/release/SDL2-${SDL_VERSION}.tar.gz)
+-set(SDL_HASH 3800d705cef742c6a634f202c37f263f)
+-
+-set(OPENCOLLADA_VERSION v1.6.68)
+-set(OPENCOLLADA_URI https://github.com/KhronosGroup/OpenCOLLADA/archive/${OPENCOLLADA_VERSION}.tar.gz)
+-set(OPENCOLLADA_HASH ee7dae874019fea7be11613d07567493)
++set(OPENEXR_VERSION_BUILD_POSTFIX)
++set(OPENEXR_VERSION_POSTFIX)
+ 
+ set(OPENCOLORIO_VERSION 1.1.0)
+ set(OPENCOLORIO_URI https://github.com/imageworks/OpenColorIO/archive/v${OPENCOLORIO_VERSION}.tar.gz)
+ set(OPENCOLORIO_HASH 802d8f5b1d1fe316ec5f76511aa611b8)
+ 
+-set(LLVM_VERSION 6.0.1)
++set(LLVM_VERSION 5.0.1)
+ set(LLVM_URI http://releases.llvm.org/${LLVM_VERSION}/llvm-${LLVM_VERSION}.src.tar.xz)
+-set(LLVM_HASH c88c98709300ce2c285391f387fecce0)
++set(LLVM_HASH 3a4ec6dcbc71579eeaec7cb157fe2168)
+ 
+ set(CLANG_URI http://releases.llvm.org/${LLVM_VERSION}/cfe-${LLVM_VERSION}.src.tar.xz)
+-set(CLANG_HASH 4e419bd4e3b55aa06d872320f754bd85)
+-
+-set(OPENMP_URI http://releases.llvm.org/${LLVM_VERSION}/openmp-${LLVM_VERSION}.src.tar.xz)
+-set(OPENMP_HASH 4826402ae3633c36c51ba4d0e5527d30)
++set(CLANG_HASH e4daa278d8f252585ab73d196484bf11)
+ 
+-set(OPENIMAGEIO_VERSION 1.8.13)
++set(OPENIMAGEIO_VERSION 2.1.15.0)
+ set(OPENIMAGEIO_URI https://github.com/OpenImageIO/oiio/archive/Release-${OPENIMAGEIO_VERSION}.tar.gz)
+-set(OPENIMAGEIO_HASH f5526c3c9878029ee900d84856683f93)
++set(OPENIMAGEIO_HASH f03aa5e3ac4795af04771ee4146e9832)
+ 
+-set(TIFF_VERSION 4.0.9)
++set(TIFF_VERSION 4.0.10)
+ set(TIFF_URI http://download.osgeo.org/libtiff/tiff-${TIFF_VERSION}.tar.gz)
+-set(TIFF_HASH 54bad211279cc93eb4fca31ba9bfdc79)
++set(TIFF_HASH 114192d7ebe537912a2b97408832e7fd)
+ 
+-set(OSL_VERSION 1.9.9)
++set(OSL_VERSION 1.10.3)
+ set(OSL_URI https://github.com/imageworks/OpenShadingLanguage/archive/Release-${OSL_VERSION}.tar.gz)
+-set(OSL_HASH 44ad511e424965a10fce051a053b0605)
++set(OSL_HASH 089aad9c1213f691d5bd250d5f3eca41)
+ 
+ set(PYTHON_VERSION 3.7.4)
+ set(PYTHON_SHORT_VERSION 3.7)
+@@ -145,13 +69,9 @@
+ set(PYTHON_URI https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz)
+ set(PYTHON_HASH d33e4aae66097051c2eca45ee3604803)
+ 
+-set(TBB_VERSION 2019_U9)
+-set(TBB_URI https://github.com/01org/tbb/archive/${TBB_VERSION}.tar.gz)
+-set(TBB_HASH 584edbec127c508f2cd5b6e79ad200fc)
+-
+-set(OPENVDB_VERSION 7.0.0)
+-set(OPENVDB_URI https://github.com/dreamworksanimation/openvdb/archive/v${OPENVDB_VERSION}.tar.gz)
+-set(OPENVDB_HASH fd6c4f168282f7e0e494d290cd531fa8)
++set(TBB_VERSION 2017_U6)
++set(TBB_URI https://github.com/oneapi-src/oneTBB/archive/${TBB_VERSION}.tar.gz)
++set(TBB_HASH 72fc78dacba2912a326b4cd6cff160ce)
+ 
+ set(IDNA_VERSION 2.8)
+ set(CHARDET_VERSION 3.0.4)
+@@ -159,122 +79,6 @@
+ set(CERTIFI_VERSION 2019.6.16)
+ set(REQUESTS_VERSION 2.22.0)
+ 
+-set(NUMPY_VERSION v1.17.0)
+-set(NUMPY_SHORT_VERSION 1.17)
+-set(NUMPY_URI https://files.pythonhosted.org/packages/da/32/1b8f2bb5fb50e4db68543eb85ce37b9fa6660cd05b58bddfafafa7ed62da/numpy-1.17.0.zip)
+-set(NUMPY_HASH aed49b31bcb44ec73b8155be78566135)
+-
+-set(LAME_VERSION 3.100)
+-set(LAME_URI http://downloads.sourceforge.net/project/lame/lame/3.100/lame-${LAME_VERSION}.tar.gz)
+-set(LAME_HASH 83e260acbe4389b54fe08e0bdbf7cddb)
+-
+-set(OGG_VERSION 1.3.3)
+-set(OGG_URI http://downloads.xiph.org/releases/ogg/libogg-${OGG_VERSION}.tar.gz)
+-set(OGG_HASH c2e8a485110b97550f453226ec644ebac6cb29d1caef2902c007edab4308d985)
+-
+-set(VORBIS_VERSION 1.3.6)
+-set(VORBIS_URI http://downloads.xiph.org/releases/vorbis/libvorbis-${VORBIS_VERSION}.tar.gz)
+-set(VORBIS_HASH 6ed40e0241089a42c48604dc00e362beee00036af2d8b3f46338031c9e0351cb)
+-
+-set(THEORA_VERSION 1.1.1)
+-set(THEORA_URI http://downloads.xiph.org/releases/theora/libtheora-${THEORA_VERSION}.tar.bz2)
+-set(THEORA_HASH b6ae1ee2fa3d42ac489287d3ec34c5885730b1296f0801ae577a35193d3affbc)
+-
+-set(FLAC_VERSION 1.3.2)
+-set(FLAC_URI http://downloads.xiph.org/releases/flac/flac-${FLAC_VERSION}.tar.xz)
+-set(FLAC_HASH 91cfc3ed61dc40f47f050a109b08610667d73477af6ef36dcad31c31a4a8d53f)
+-
+-set(VPX_VERSION 1.7.0)
+-set(VPX_URI https://github.com/webmproject/libvpx/archive/v${VPX_VERSION}/libvpx-v${VPX_VERSION}.tar.gz)
+-set(VPX_HASH 1fec931eb5c94279ad219a5b6e0202358e94a93a90cfb1603578c326abfc1238)
+-
+-set(OPUS_VERSION 1.3.1)
+-set(OPUS_URI https://archive.mozilla.org/pub/opus/opus-${OPUS_VERSION}.tar.gz)
+-set(OPUS_HASH 65b58e1e25b2a114157014736a3d9dfeaad8d41be1c8179866f144a2fb44ff9d)
+-
+-set(X264_URI http://download.videolan.org/pub/videolan/x264/snapshots/x264-snapshot-20180811-2245-stable.tar.bz2)
+-set(X264_HASH ae8a868a0e236a348b35d79f3ee80294b169d1195408b689f9851383661ed7aa)
+-
+-set(XVIDCORE_VERSION 1.3.5)
+-set(XVIDCORE_URI http://downloads.xvid.org/downloads/xvidcore-${XVIDCORE_VERSION}.tar.gz)
+-set(XVIDCORE_HASH 165ba6a2a447a8375f7b06db5a3c91810181f2898166e7c8137401d7fc894cf0)
+-
+-# This has to be in sync with the version in blenders /extern folder.
+-set(OPENJPEG_VERSION 2.3.0)
+-set(OPENJPEG_SHORT_VERSION 2.3)
+-# Use slightly newer commit after release which includes a cmake fix
+-set(OPENJPEG_URI https://github.com/uclouvain/openjpeg/archive/66297f07a43.zip)
+-set(OPENJPEG_HASH 8242b18d908c7c42174e4231a741cfa7ce7c26b6ed5c9644feb9df7b3054310b)
+-
+-set(FAAD_VERSION 2-2.8.8)
+-set(FAAD_URI http://downloads.sourceforge.net/faac/faad${FAAD_VERSION}.tar.gz)
+-set(FAAD_HASH 28f6116efdbe9378269f8a6221767d1f)
+-
+-set(FFMPEG_VERSION 4.0.2)
+-set(FFMPEG_URI http://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2)
+-set(FFMPEG_HASH 5576e8a22f80b6a336db39808f427cfb)
+-
+-set(FFTW_VERSION 3.3.8)
+-set(FFTW_URI http://www.fftw.org/fftw-${FFTW_VERSION}.tar.gz)
+-set(FFTW_HASH 8aac833c943d8e90d51b697b27d4384d)
+-
+-set(ICONV_VERSION 1.15)
+-set(ICONV_URI http://ftp.gnu.org/pub/gnu/libiconv/libiconv-${ICONV_VERSION}.tar.gz)
+-set(ICONV_HASH ace8b5f2db42f7b3b3057585e80d9808)
+-
+-set(LAPACK_VERSION 3.6.0)
+-set(LAPACK_URI http://www.netlib.org/lapack/lapack-${LAPACK_VERSION}.tgz)
+-set(LAPACK_HASH f2f6c67134e851fe189bb3ca1fbb5101)
+-
+-set(SNDFILE_VERSION 1.0.28)
+-set(SNDFILE_URI http://www.mega-nerd.com/libsndfile/files/libsndfile-${SNDFILE_VERSION}.tar.gz)
+-set(SNDFILE_HASH 646b5f98ce89ac60cdb060fcd398247c)
+-
+-# set(HIDAPI_VERSION 0.8.0-rc1)
+-# set(HIDAPI_URI https://github.com/signal11/hidapi/archive/hidapi-${HIDAPI_VERSION}.tar.gz)
+-# set(HIDAPI_HASH 069f9dd746edc37b6b6d0e3656f47199)
+-
+-set(HIDAPI_UID 89a6c75dc6f45ecabd4ddfbd2bf5ba6ad8ba38b5)
+-set(HIDAPI_URI https://github.com/TheOnlyJoey/hidapi/archive/${HIDAPI_UID}.zip)
+-set(HIDAPI_HASH b6e22f6b514f8bcf594989f20ffc46fb)
+-
+-set(WEBP_VERSION 0.6.1)
+-set(WEBP_URI https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-${WEBP_VERSION}.tar.gz)
+-set(WEBP_HASH b49ce9c3e3e9acae4d91bca44bb85a72)
+-
+-set(SPNAV_VERSION 0.2.3)
+-set(SPNAV_URI http://downloads.sourceforge.net/project/spacenav/spacenav%20library%20%28SDK%29/libspnav%20${SPNAV_VERSION}/libspnav-${SPNAV_VERSION}.tar.gz)
+-set(SPNAV_HASH 44d840540d53326d4a119c0f1aa7bf0a)
+-
+-set(JEMALLOC_VERSION 5.0.1)
+-set(JEMALLOC_URI https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_VERSION}/jemalloc-${JEMALLOC_VERSION}.tar.bz2)
+-set(JEMALLOC_HASH 507f7b6b882d868730d644510491d18f)
+-
+-set(XML2_VERSION 2.9.4)
+-set(XML2_URI http://xmlsoft.org/sources/libxml2-${XML2_VERSION}.tar.gz)
+-set(XML2_HASH ae249165c173b1ff386ee8ad676815f5)
+-
+-set(TINYXML_VERSION 2_6_2)
+-set(TINYXML_VERSION_DOTS 2.6.2)
+-set(TINYXML_URI https://nchc.dl.sourceforge.net/project/tinyxml/tinyxml/${TINYXML_VERSION_DOTS}/tinyxml_${TINYXML_VERSION}.tar.gz)
+-set(TINYXML_HASH c1b864c96804a10526540c664ade67f0)
+-
+-set(YAMLCPP_VERSION 0.6.3)
+-set(YAMLCPP_URI https://codeload.github.com/jbeder/yaml-cpp/tar.gz/yaml-cpp-${YAMLCPP_VERSION})
+-set(YAMLCPP_HASH b45bf1089a382e81f6b661062c10d0c2)
+-
+-set(LCMS_VERSION 2.9)
+-set(LCMS_URI https://nchc.dl.sourceforge.net/project/lcms/lcms/${LCMS_VERSION}/lcms2-${LCMS_VERSION}.tar.gz)
+-set(LCMS_HASH 8de1b7724f578d2995c8fdfa35c3ad0e)
+-
+-set(PUGIXML_VERSION 1.9)
+-set(PUGIXML_URI https://github.com/zeux/pugixml/archive/v1.9.tar.gz)
+-set(PUGIXML_HASH 9346ca1dce2c48f1748c12fdac41a714)
+-
+-set(FLEXBISON_VERSION 2.5.5)
+-set(FLEXBISON_URI http://prdownloads.sourceforge.net/winflexbison//win_flex_bison-2.5.5.zip)
+-set(FLEXBISON_HASH d87a3938194520d904013abef3df10ce)
+-
+ # Libraries to keep Python modules static on Linux.
+ 
+ # NOTE: bzip.org domain does no longer belong to BZip 2 project, so we download
+@@ -299,22 +103,6 @@
+ set(SQLITE_URI https://www.sqlite.org/2018/sqlite-src-3240000.zip)
+ set(SQLITE_HASH fb558c49ee21a837713c4f1e7e413309aabdd9c7)
+ 
+-set(EMBREE_VERSION 3.2.4)
++set(EMBREE_VERSION 3.5.2)
+ set(EMBREE_URI https://github.com/embree/embree/archive/v${EMBREE_VERSION}.zip)
+-set(EMBREE_HASH 3d4a1147002ff43939d45140aa9d6fb8)
+-
+-set(USD_VERSION 19.11)
+-set(USD_URI https://github.com/PixarAnimationStudios/USD/archive/v${USD_VERSION}.tar.gz)
+-set(USD_HASH 79ff176167b3fe85f4953abd6cc5e0cc)
+-
+-set(OIDN_VERSION 1.0.0)
+-set(OIDN_URI https://github.com/OpenImageDenoise/oidn/releases/download/v${OIDN_VERSION}/oidn-${OIDN_VERSION}.src.zip)
+-set(OIDN_HASH 19fe67b0164e8f020ac8a4f520defe60)
+-
+-set(LIBGLU_VERSION 9.0.1)
+-set(LIBGLU_URI ftp://ftp.freedesktop.org/pub/mesa/glu/glu-${LIBGLU_VERSION}.tar.xz)
+-set(LIBGLU_HASH 151aef599b8259efe9acd599c96ea2a3)
+-
+-set(MESA_VERSION 18.3.1)
+-set(MESA_URI ftp://ftp.freedesktop.org/pub/mesa//mesa-${MESA_VERSION}.tar.xz)
+-set(MESA_HASH d60828056d77bfdbae0970f9b15fb1be)
++set(EMBREE_HASH 86e8fc4dc7826495326f2a1b18cd454d)
+diff -Naur ../build_environment_orig/CMakeLists.txt ./CMakeLists.txt
+--- ../build_environment_orig/CMakeLists.txt	2020-06-08 14:35:53.827546600 +0000
++++ ./CMakeLists.txt	2020-06-08 14:19:35.158337000 +0000
+@@ -47,120 +47,27 @@
+ include(cmake/options.cmake)
+ include(cmake/versions.cmake)
+ 
+-if(ENABLE_MINGW64)
+-  if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+-    include(cmake/setup_mingw64.cmake)
+-  else()
+-    include(cmake/setup_mingw32.cmake)
+-  endif()
+-else()
+-  set(mingw_LIBDIR ${LIBDIR})
+-endif()
+-
+ include(cmake/zlib.cmake)
+-include(cmake/openal.cmake)
+ include(cmake/png.cmake)
+ include(cmake/jpeg.cmake)
+ include(cmake/boost.cmake)
+-include(cmake/blosc.cmake)
+-include(cmake/pthreads.cmake)
+ include(cmake/openexr.cmake)
+-include(cmake/freetype.cmake)
+-include(cmake/freeglut.cmake)
+-include(cmake/glew.cmake)
+-include(cmake/alembic.cmake)
+-include(cmake/glfw.cmake)
+-include(cmake/clew.cmake)
+-include(cmake/cuew.cmake)
+-include(cmake/opensubdiv.cmake)
+-include(cmake/sdl.cmake)
+-include(cmake/opencollada.cmake)
+ include(cmake/opencolorio.cmake)
+ include(cmake/llvm.cmake)
+ include(cmake/clang.cmake)
+-if(APPLE)
+-  include(cmake/openmp.cmake)
+-endif()
+ include(cmake/openimageio.cmake)
+ include(cmake/tiff.cmake)
+-include(cmake/flexbison.cmake)
+ include(cmake/osl.cmake)
+ include(cmake/tbb.cmake)
+-include(cmake/openvdb.cmake)
+ include(cmake/python.cmake)
+ include(cmake/python_site_packages.cmake)
+ include(cmake/package_python.cmake)
+-include(cmake/numpy.cmake)
+-include(cmake/usd.cmake)
+-if(UNIX)
+-  # Rely on PugiXML compiled with OpenImageIO
+-else()
+-  include(cmake/pugixml.cmake)
+-endif()
+-include(cmake/openimagedenoise.cmake)
+-
+-if(WITH_WEBP)
+-  include(cmake/webp.cmake)
+-endif()
+-
+-if(WITH_EMBREE)
+-  include(cmake/embree.cmake)
+-endif()
+-
+-if(WIN32)
+-  # HMD branch deps
+-  include(cmake/hidapi.cmake)
+-  # OCIO deps
+-  include(cmake/tinyxml.cmake)
+-  include(cmake/yamlcpp.cmake)
+-  # LCMS is an OCIO dep, but only if you build the apps, leaving it here for convenience
+-  # include(cmake/lcms.cmake)
+-
+-endif()
+-
+-if(NOT WIN32 OR ENABLE_MINGW64)
+-  include(cmake/openjpeg.cmake)
+-  if(NOT WIN32 OR BUILD_MODE STREQUAL Release)
+-    if(WIN32)
+-      include(cmake/zlib_mingw.cmake)
+-    endif()
+-    include(cmake/lame.cmake)
+-    include(cmake/ogg.cmake)
+-    include(cmake/vorbis.cmake)
+-    include(cmake/theora.cmake)
+-    include(cmake/opus.cmake)
+-    include(cmake/vpx.cmake)
+-    include(cmake/x264.cmake)
+-    include(cmake/xvidcore.cmake)
+-    include(cmake/faad.cmake)
+-    include(cmake/ffmpeg.cmake)
+-    include(cmake/fftw.cmake)
+-    include(cmake/sndfile.cmake)
+-    if(WIN32)
+-      include(cmake/iconv.cmake)
+-    endif()
+-    if(UNIX)
+-      include(cmake/flac.cmake)
+-      include(cmake/xml2.cmake)
+-      if(NOT APPLE)
+-        include(cmake/spnav.cmake)
+-        include(cmake/jemalloc.cmake)
+-      endif()
+-    endif()
+-  endif()
+-endif()
+-
+-if(UNIX)
+-  include(cmake/bzip2.cmake)
+-  include(cmake/ffi.cmake)
+-  include(cmake/lzma.cmake)
+-  include(cmake/ssl.cmake)
+-  include(cmake/sqlite.cmake)
+-endif()
++include(cmake/embree.cmake)
+ 
+-if(UNIX AND NOT APPLE)
+-  include(cmake/libglu.cmake)
+-  include(cmake/mesa.cmake)
+-endif()
++include(cmake/bzip2.cmake)
++include(cmake/ffi.cmake)
++include(cmake/lzma.cmake)
++include(cmake/ssl.cmake)
++include(cmake/sqlite.cmake)
+ 
+ include(cmake/harvest.cmake)
+diff -Naur ../build_environment_orig/patches/cmakelists_tbb.txt ./patches/cmakelists_tbb.txt
+--- ../build_environment_orig/patches/cmakelists_tbb.txt	2020-06-08 14:35:54.614920100 +0000
++++ ./patches/cmakelists_tbb.txt	2020-06-08 14:19:36.154943900 +0000
+@@ -109,6 +109,9 @@
+     MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/src/tbbmalloc/${ARCH_PREFIX}-tbbmalloc-export.def
+     COMMENT "Preprocessing tbbmalloc.def"
+   )
++  list(APPEND tbb_src ${CMAKE_CURRENT_SOURCE_DIR}/src/tbb/tbb_resource.rc)
++  list(APPEND tbbmalloc_src ${CMAKE_CURRENT_SOURCE_DIR}/src/tbbmalloc/tbbmalloc.rc)
++  list(APPEND tbbmalloc_proxy_src ${CMAKE_CURRENT_SOURCE_DIR}/src/tbbmalloc/tbbmalloc.rc)
+ else()
+   add_custom_command(OUTPUT tbb.def
+     COMMAND ${CMAKE_CXX_COMPILER} -xc++ -E ${CMAKE_CURRENT_SOURCE_DIR}/src/tbb/${ARCH_PREFIX}-tbb-export.def  -I ${CMAKE_CURRENT_SOURCE_DIR}/include -o tbb.def
+@@ -145,8 +148,12 @@
+     set_property(TARGET tbb APPEND PROPERTY LINK_FLAGS "-Wl,-version-script,${CMAKE_CURRENT_BINARY_DIR}/tbb.def")
+   elseif(WIN32)
+     set_property(TARGET tbb APPEND PROPERTY LINK_FLAGS "/DEF:${CMAKE_CURRENT_BINARY_DIR}/tbb.def")
++    
+   endif()
+   install(TARGETS tbb DESTINATION lib)
++  if(WIN32)
++    set_target_properties(tbb PROPERTIES OUTPUT_NAME "tbb$<$<CONFIG:Debug>:_debug>")
++  endif()
+ endif()
+ 
+ if(CMAKE_COMPILER_IS_GNUCC)
+@@ -196,7 +203,7 @@
+     add_library(tbbmalloc_proxy SHARED ${tbbmalloc_proxy_src})
+     set_property(TARGET tbbmalloc_proxy APPEND PROPERTY COMPILE_DEFINITIONS "__TBBMALLOC_BUILD=1")
+     set_property(TARGET tbbmalloc_proxy APPEND_STRING PROPERTY COMPILE_FLAGS ${DISABLE_RTTI})
+-    link_libraries(tbbmalloc_proxy tbbmalloc)
++    target_link_libraries(tbbmalloc_proxy tbbmalloc)
+     install(TARGETS tbbmalloc_proxy DESTINATION lib)
+   endif()
+ endif()
+diff -Naur ../build_environment_orig/patches/openimageio.diff ./patches/openimageio.diff
+--- ../build_environment_orig/patches/openimageio.diff	1970-01-01 00:00:00.000000000 +0000
++++ ./patches/openimageio.diff	2020-06-08 14:19:36.295231100 +0000
+@@ -0,0 +1,36 @@
++diff -Naur orig/CMakeLists.txt external_openimageio/CMakeLists.txt
++--- orig/CMakeLists.txt	2020-05-10 21:43:52 -0600
+++++ external_openimageio/CMakeLists.txt	2020-05-13 17:03:35 -0600
++@@ -170,7 +170,7 @@
++     add_subdirectory (src/iinfo)
++     add_subdirectory (src/maketx)
++     add_subdirectory (src/oiiotool)
++-    add_subdirectory (src/testtex)
+++    #add_subdirectory (src/testtex)
++     add_subdirectory (src/iv)
++ endif ()
++ 
++diff -Naur orig/src/cmake/compiler.cmake external_openimageio/src/cmake/compiler.cmake
++--- orig/src/cmake/compiler.cmake	2020-05-10 21:43:52 -0600
+++++ external_openimageio/src/cmake/compiler.cmake	2020-05-13 17:02:54 -0600
++@@ -172,6 +172,7 @@
++     add_definitions (-D_CRT_NONSTDC_NO_WARNINGS)
++     add_definitions (-D_SCL_SECURE_NO_WARNINGS)
++     add_definitions (-DJAS_WIN_MSVC_BUILD)
+++    add_definitions (-DOPJ_STATIC)
++ endif (MSVC)
++ 
++ if (${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD"
++diff -Naur orig/src/include/OpenImageIO/platform.h external_openimageio/src/include/OpenImageIO/platform.h
++--- orig/src/include/OpenImageIO/platform.h	2020-05-10 21:43:52 -0600
+++++ external_openimageio/src/include/OpenImageIO/platform.h	2020-05-13 17:04:36 -0600
++@@ -41,6 +41,9 @@
++ #    ifndef NOMINMAX
++ #        define NOMINMAX
++ #    endif
+++#    ifndef NOGDI
+++#        define NOGDI
+++#    endif
++ #    include <windows.h>
++ #endif
++ 
+diff -Naur ../build_environment_orig/patches/openimageio_gdi.diff ./patches/openimageio_gdi.diff
+--- ../build_environment_orig/patches/openimageio_gdi.diff	2020-06-08 14:35:54.747920300 +0000
++++ ./patches/openimageio_gdi.diff	1970-01-01 00:00:00.000000000 +0000
+@@ -1,26 +0,0 @@
+-Index: OpenImageIO/osdep.h
+-===================================================================
+---- OpenImageIO/osdep.h	(revision 61595)
+-+++ OpenImageIO/osdep.h	(working copy)
+-@@ -34,6 +34,7 @@
+- # define WIN32_LEAN_AND_MEAN
+- # define VC_EXTRALEAN
+- # define NOMINMAX
+-+# define NOGDI
+- # include <windows.h>
+- #endif
+- 
+-Index: OpenImageIO/platform.h
+-===================================================================
+---- OpenImageIO/platform.h	(revision 61595)
+-+++ OpenImageIO/platform.h	(working copy)
+-@@ -77,6 +77,9 @@
+- # ifndef NOMINMAX
+- #   define NOMINMAX
+- # endif
+-+# ifndef NOGDI
+-+#   define NOGDI
+-+# endif
+- # include <windows.h>
+- #endif
+- 
+diff -Naur ../build_environment_orig/patches/openimageio_idiff.diff ./patches/openimageio_idiff.diff
+--- ../build_environment_orig/patches/openimageio_idiff.diff	2020-06-08 14:35:54.755919900 +0000
++++ ./patches/openimageio_idiff.diff	1970-01-01 00:00:00.000000000 +0000
+@@ -1,13 +0,0 @@
+---- idiff.cpp	2016-11-18 11:42:01 -0700
+-+++ idiff.cpp	2016-11-18 11:41:25 -0700
+-@@ -308,8 +308,10 @@
+- // printed with three digit exponent. We change this behaviour to fit
+- // Linux way
+- #ifdef _MSC_VER
+-+#if _MSC_VER < 1900
+-                 _set_output_format(_TWO_DIGIT_EXPONENT);
+- #endif
+-+#endif
+-                 std::streamsize precis = std::cout.precision();
+-                 std::cout << "  " << cr.nwarn << " pixels (" 
+-                           << std::setprecision(3) << (100.0*cr.nwarn / npels) 
+diff -Naur ../build_environment_orig/patches/openimageio_static_libs.diff ./patches/openimageio_static_libs.diff
+--- ../build_environment_orig/patches/openimageio_static_libs.diff	2020-06-08 14:35:54.763921000 +0000
++++ ./patches/openimageio_static_libs.diff	1970-01-01 00:00:00.000000000 +0000
+@@ -1,22 +0,0 @@
+-diff -Naur external_openimageio.orig/src/cmake/compiler.cmake external_openimageio/src/cmake/compiler.cmake
+---- external_openimageio.orig/src/cmake/compiler.cmake	2018-07-31 23:45:19 -0600
+-+++ external_openimageio/src/cmake/compiler.cmake	2018-08-16 12:50:12 -0600
+-@@ -152,6 +152,7 @@
+-     add_definitions (-D_CRT_NONSTDC_NO_WARNINGS)
+-     add_definitions (-D_SCL_SECURE_NO_WARNINGS)
+-     add_definitions (-DJAS_WIN_MSVC_BUILD)
+-+    add_definitions (-DOPJ_STATIC)
+- endif (MSVC)
+- 
+- # Use ccache if found
+---- external_openimageio.orig/CMakeLists.txt	2018-07-31 23:45:19 -0600
+-+++ external_openimageio/CMakeLists.txt	2018-08-17 15:22:56 -0600
+-@@ -169,7 +169,7 @@
+-   add_subdirectory (src/iinfo)
+-   add_subdirectory (src/maketx)
+-   add_subdirectory (src/oiiotool)
+--  add_subdirectory (src/testtex)
+-+# add_subdirectory (src/testtex)
+-   add_subdirectory (src/iv)
+- endif ()
+- 
+diff -Naur ../build_environment_orig/patches/osl.diff ./patches/osl.diff
+--- ../build_environment_orig/patches/osl.diff	2020-06-08 14:35:54.779920600 +0000
++++ ./patches/osl.diff	2020-06-08 14:19:36.315230800 +0000
+@@ -1,15 +1,3 @@
+-diff -Naur OpenShadingLanguage-Release-1.9.9/src/cmake/flexbison.cmake external_osl/src/cmake/flexbison.cmake
+---- OpenShadingLanguage-Release-1.9.9/src/cmake/flexbison.cmake	2018-05-01 16:39:02 -0600
+-+++ external_osl/src/cmake/flexbison.cmake	2018-08-23 15:42:27 -0600
+-@@ -77,7 +77,7 @@
+-           DEPENDS ${${compiler_headers}}
+-           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+-         ADD_CUSTOM_COMMAND ( OUTPUT ${flexoutputcxx} 
+--          COMMAND ${FLEX_EXECUTABLE} -o ${flexoutputcxx} "${CMAKE_CURRENT_SOURCE_DIR}/${flexsrc}"
+-+          COMMAND ${FLEX_EXECUTABLE} ${FLEX_EXTRA_OPTIONS} -o ${flexoutputcxx} "${CMAKE_CURRENT_SOURCE_DIR}/${flexsrc}"
+-           MAIN_DEPENDENCY ${flexsrc}
+-           DEPENDS ${${compiler_headers}}
+-           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+ diff -Naur OpenShadingLanguage-Release-1.9.9/src/cmake/flexbison.cmake.rej external_osl/src/cmake/flexbison.cmake.rej
+ --- OpenShadingLanguage-Release-1.9.9/src/cmake/flexbison.cmake.rej	1969-12-31 17:00:00 -0700
+ +++ external_osl/src/cmake/flexbison.cmake.rej	2018-08-24 17:42:11 -0600
+@@ -45,18 +33,6 @@
+  
+  private:
+      class MemoryManager;
+-diff -Naur OpenShadingLanguage-Release-1.9.9/src/include/OSL/oslnoise.h external_osl/src/include/OSL/oslnoise.h
+---- OpenShadingLanguage-Release-1.9.9/src/include/OSL/oslnoise.h	2018-05-01 16:39:02 -0600
+-+++ external_osl/src/include/OSL/oslnoise.h	2018-08-24 17:42:11 -0600
+-@@ -762,7 +762,7 @@
+- // packed into a float4. We assume T is float and VECTYPE is float4,
+- // but it also works if T is Dual2<float> and VECTYPE is Dual2<float4>.
+- template<typename T, typename VECTYPE>
+--OIIO_FORCEINLINE T bilerp (VECTYPE abcd, T u, T v) {
+-+OIIO_FORCEINLINE T bilerp (VECTYPE& abcd, T u, T v) {
+-     VECTYPE xx = OIIO::lerp (abcd, OIIO::simd::shuffle<1,1,3,3>(abcd), u);
+-     return OIIO::simd::extract<0>(OIIO::lerp (xx,OIIO::simd::shuffle<2>(xx), v));
+- }
+ diff -Naur OpenShadingLanguage-Release-1.9.9/src/liboslexec/llvm_util.cpp external_osl/src/liboslexec/llvm_util.cpp
+ --- OpenShadingLanguage-Release-1.9.9/src/liboslexec/llvm_util.cpp	2018-05-01 16:39:02 -0600
+ +++ external_osl/src/liboslexec/llvm_util.cpp	2018-08-25 14:04:27 -0600
+@@ -72,3 +48,22 @@
+  
+  size_t
+  LLVM_Util::total_jit_memory_held ()
++diff -Naur OpenShadingLanguage-Release-1.9.9/CMakeLists.txt external_osl/CMakeLists.txt
++ --- orig/CMakeLists.txt	2020-01-27 16:22:31 -0700
+++++ external_osl/CMakeLists.txt	2020-05-13 18:04:52 -0600
++@@ -102,10 +102,11 @@
++ set (OPTIX_EXTRA_LIBS CACHE STRING "Extra lib targets needed for OptiX")
++ set (CUDA_TARGET_ARCH "sm_35" CACHE STRING "CUDA GPU architecture (e.g. sm_35)")
++ 
++-# set (USE_OIIO_STATIC ON CACHE BOOL "If OIIO is built static")
++-# if (USE_OIIO_STATIC)
++-#     add_definitions ("-DOIIO_STATIC_BUILD=1")
++-# endif ()
+++set (USE_OIIO_STATIC ON CACHE BOOL "If OIIO is built static")
+++if (USE_OIIO_STATIC)
+++    add_definitions ("-DOIIO_STATIC_BUILD=1")
+++    add_definitions ("-DOIIO_STATIC_DEFINE=1")
+++endif ()
++ 
++ set (OSL_NO_DEFAULT_TEXTURESYSTEM OFF CACHE BOOL "Do not use create a raw OIIO::TextureSystem")
++ if (OSL_NO_DEFAULT_TEXTURESYSTEM)
+\ No newline at end of file

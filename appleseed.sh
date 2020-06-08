@@ -1,127 +1,195 @@
 #!/bin/bash
 
 # Make sure toolset is enabled
-gcc --version
 version="$(gcc -dumpversion)"
-if [[ $version =~ 6.*.* ]]; then
+if [[ $version =~ 6.[0-9](.[0-9]|) ]]; then
     printf "\n\nDevtoolset-6 is running\n\n"
 else
     printf "\n\nReloading with devtoolset-6\n\n"
-    scl enable devtoolset-6 "sh ./build.sh"
+    scl enable devtoolset-6 "sh /usr/bin/appleseed.sh"
     exit 0
 fi
 
-# Install appleseed / blenderseed deps
+# Basics
 yum -y update
+yum -y upgrade
+
+# Install appleseed / blenderseed deps
 yum -y install python2
 yum -y install python2-pip
-yum -y install qt5-qtbase-devel
+
+# Blender must exist
+if [ ! -d "$HOME/blender-git" ]; then
+    printf "\n\nBlender repository does not exist, exiting..\n\n"
+    exit 0
+fi
+
+# Make sure appleseed deps can be built
+gitver=$(cd $HOME/blender-git/blender && git status 2>&1)
+# Switch tag/branch if necessary (stashing changes)
+if [[ !($gitver =~ .*2.82a.*) ]]; then
+    printf "\n\nBlender repository not at v2.82a, switching..\n\n"
+    cd $HOME/blender-git/blender \
+     && git stash \
+     && git checkout v2.82a \
+     && git submodule foreach git stash \
+     && git submodule foreach git checkout v2.82a
+fi
 
 # Download appleseed 2.1.0 (latest)
 if [ ! -d "$HOME/appleseed-git" ]; then
     mkdir $HOME/appleseed-git \
-    && mkdir $HOME/blenderseed-git \
+    && mkdir $HOME/appleseed-git/deps-done \
+    && mkdir $HOME/appleseed-git/deps-build \
     && cd $HOME/appleseed-git \
     && git clone https://github.com/appleseedhq/appleseed.git
 fi
 
-# Download prebuilt binaries
-if [ ! -d "$HOME/appleseed-git/prebuilt-linux-deps" ]; then
-    cd $HOME/appleseed-git \
-    && curl -OL https://github.com/appleseedhq/linux-deps/releases/download/v2.1.1/appleseed-deps-static-2.1.1.tgz \
-    && tar xf appleseed-*.tgz \
-    && cd && rm -rf $HOME/appleseed-git/appleseed-*.tgz
+# Download Blenderseed & fix packaging bug
+if [ ! -d "$HOME/appleseed-git/blenderseed" ]; then
+    mkdir $HOME/appleseed-git/appleseed-install \
+     && cd $HOME/appleseed-git/ \
+     && git clone https://github.com/appleseedhq/blenderseed.git
 fi
 
-# Blender deps must have been built first
-if [ ! -d "$HOME/blender-git/lib/linux_x86_64" ]; then
-    printf "\nBlender deps have not been built yet, exiting..\n"
-    exit 0
+# Patch bugs & other problems
+patch -f -s -p0 -d $HOME/blender-git/blender/build_files/build_environment < $HOME/patches/build-as.diff \
+ && patch -f -s -p0 -d $HOME/appleseed-git/blenderseed/scripts < $HOME/patches/scripts-as.diff
+
+# Use blender's deps build system to build most appleseed deps
+for ((i=1;i<=10;i++)); do
+    cd $HOME/blender-git/blender \
+     && make deps BUILD_DIR=$HOME/appleseed-git/deps-build DEPS_INSTALL_DIR=$HOME/appleseed-git/deps-done --quiet
+    # Error code 0 means success
+    if [ "$?" -eq 0 ]; then
+        break
+    else
+        printf "\n\nMake deps (appleseed) failed, start attempt $i\n\n"
+    fi
+done
+
+# Make lz4 1.8.3 (not provided by Blender)
+if [ ! -d "$HOME/appleseed-git/deps-done/lz4" ]; then
+    cd $HOME/appleseed-git/deps-build \
+     && curl -L https://github.com/lz4/lz4/archive/v1.8.3.tar.gz -o lz4-v1.8.3.tar.gz \
+     && tar xf lz4-*.tar.gz \
+     && rm -rf lz4-*.tar.gz \
+     && cd lz4-*/ \
+     && make default PREFIX=$HOME/appleseed-git/deps-done/lz4 \
+      BUILD_SHARED=no \
+      BUILD_STATIC=yes \
+      CFLAGS="-std=gnu11 -fPIC -static-libgcc" \
+      CXXFLAGS="-std=c++11 -fPIC -static-libgcc -static-libstdc++" \
+      LDFLAGS="-static-libgcc -static-libstdc++" \
+      install
 fi
 
-# Setup boost 1.61
-if [ ! -d "$HOME/boost-py" ]; then
-    mkdir $HOME/boost-py \
-    && mkdir $HOME/boost-py/build \
-    && cd $HOME/boost-py \
-    && wget -O boost.tar.gz https://sourceforge.net/projects/boost/files/boost/1.61.0/boost_1_61_0.tar.gz/download?use_mirror=pilotfiber \
-    && tar xf boost.tar.gz \
-    && cd boost_1_61_0 \
-    && ./bootstrap.sh --with-python-version=3.7 --prefix=$HOME/boost-py/build \
-    && cd && rm -rf $HOME/boost-py/boost.tar.gz
-    # Patch compiler bug
-    sed -i "s/return PyUnicode_Check(obj) ? _PyUnicode_AsString(obj) : 0;/return (void *)(PyUnicode_Check(obj) ? _PyUnicode_AsString(obj) : 0);/g" \
-     $HOME/boost-py/boost_1_61_0/libs/python/src/converter/builtin_converters.cpp
+# Make xerces-c 3.2.2 (not provided by Blender)
+if [ ! -d "$HOME/appleseed-git/deps-done/xerces" ]; then
+    cd $HOME/appleseed-git/deps-build \
+     && curl -L https://github.com/apache/xerces-c/archive/v3.2.2.tar.gz -o xerces-c-v3.2.2.tar.gz \
+     && tar xf xerces-*.tar.gz \
+     && rm -rf xerces-*.tar.gz \
+     && cd xerces-*/ \
+     && ./reconf \
+     && ./configure --prefix=$HOME/appleseed-git/deps-done/xerces \
+      --disable-shared \
+      --enable-static \
+      --without-icu \
+      --disable-netaccessor-curl \
+      --disable-netaccessor-cfurl \
+      --disable-netaccessor-socket \
+      --disable-netaccessor-winsock \
+      --with-pic \
+      CFLAGS="-fPIC -static-libgcc" \
+      CPPFLAGS="-std=c++11 -fPIC -static-libgcc -static-libstdc++" \
+      LDFLAGS="-static-libgcc -static-libstdc++" \
+     && make install
 fi
-
-# Build static boost with blender's python 3
-cd $HOME/boost-py/boost_1_61_0
-./b2 cxxflags="-std=c++11 -fPIC -static" \
- --user-config=$HOME/patches/user-config.jam \
- architecture=x86 address-model=64 link=static threading=multi \
- --with-python \
- --prefix=$HOME/boost-py/build \
- install
 
 # Declare paths
-export BLENDER_DIR=$HOME/blender-git/lib/linux_x86_64
-export BOOST_PY_DIR=$HOME/boost-py/build
-export APPLESEED_DEPENDENCIES=$HOME/appleseed-git/prebuilt-linux-deps
-export CMAKE_INCLUDE_PATH=$APPLESEED_DEPENDENCIES/include
-export CMAKE_LIBRARY_PATH=$APPLESEED_DEPENDENCIES/lib
-
-# Generate appleseed with python3 bindings cmake project
+export APPLESEED_DEPENDENCIES=$HOME/appleseed-git/deps-done
+export BOOST_LIBS=$APPLESEED_DEPENDENCIES/boost/lib
+# Generate appleseed cmake project with python3 bindings etc.
 cd $HOME/appleseed-git/appleseed
 cmake -B ../build -Wno-dev \
-  -DCMAKE_PREFIX_PATH=/usr/include/qt5 \
+  -DCMAKE_C_FLAGS="-fuse-ld=gold -std=gnu11 -fPIC -static-libgcc" \
+  -DCMAKE_CXX_FLAGS="-fuse-ld=gold -std=c++11 -fPIC -static-libgcc \
+   -static-libstdc++ -l:libstdc++.a -D_GLIBCXX_USE_CXX11_ABI=0" \
   -DWITH_STUDIO=OFF \
+  -DWITH_BENCH=OFF \
+  -DWITH_TOOLS=OFF \
+  -DWITH_EMBREE=ON \
   -DWITH_PYTHON2_BINDINGS=OFF \
   -DWITH_PYTHON3_BINDINGS=ON \
-  -DPYTHON3_INCLUDE_DIR=$BLENDER_DIR/python/include/python3.7m \
-  -DWITH_EMBREE=ON \
   -DUSE_SSE42=ON \
   -DUSE_STATIC_BOOST=ON \
-  -DBOOST_INCLUDEDIR=$APPLESEED_DEPENDENCIES/include/boost_1_61_0 \
-  -DBOOST_LIBRARYDIR=$APPLESEED_DEPENDENCIES/lib/ \
+  -DBOOST_INCLUDEDIR=$APPLESEED_DEPENDENCIES/boost/include \
+  -DBOOST_LIBRARYDIR=$APPLESEED_DEPENDENCIES/boost/lib/ \
   -DBoost_NO_SYSTEM_PATHS=ON \
-  -DBoost_ATOMIC_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_atomic-gcc63-mt-1_61.a \
-  -DBoost_CHRONO_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_chrono-gcc63-mt-1_61.a \
-  -DBoost_DATE_TIME_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_date_time-gcc63-mt-1_61.a \
-  -DBoost_FILESYSTEM_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_filesystem-gcc63-mt-1_61.a \
-  -DBoost_PYTHON3_LIBRARY=$BOOST_PY_DIR/lib/libboost_python3.a \
-  -DBoost_PYTHON3_LIBRARY_RELEASE=$BOOST_PY_DIR/lib/libboost_python3.a \
-  -DBoost_REGEX_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_regex-gcc63-mt-1_61.a \
-  -DBoost_SYSTEM_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_system-gcc63-mt-1_61.a \
-  -DBoost_THREAD_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_thread-gcc63-mt-1_61.a \
-  -DBoost_WAVE_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_wave-gcc63-mt-1_61.a \
-  -DBoost_SERIALIZATION_LIBRARY_RELEASE=$APPLESEED_DEPENDENCIES/lib/libboost_serialization-gcc63-mt-1_61.a \
-  -DEMBREE_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/include \
-  -DEMBREE_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libembree3.a \
-  -DIMATH_HALF_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libHalf-2_3_s.a \
-  -DIMATH_IEX_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libIex-2_3_s.a \
-  -DIMATH_MATH_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libImath-2_3_s.a \
-  -DOPENEXR_IMF_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libIlmImf-2_3_s.a \
-  -DOPENEXR_THREADS_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libIlmThread-2_3_s.a \
-  -DXERCES_LIBRARY=$APPLESEED_DEPENDENCIES/lib/libxerces-c-3.2.a \
-  -DLZ4_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/include \
-  -DLZ4_LIBRARY=$APPLESEED_DEPENDENCIES/lib/liblz4.a \
-  -DOPENIMAGEIO_OIIOTOOL=$APPLESEED_DEPENDENCIES/bin/oiiotool \
-  -DOPENIMAGEIO_IDIFF=$APPLESEED_DEPENDENCIES/bin/idiff \
-  -DOSL_COMPILER=$APPLESEED_DEPENDENCIES/bin/oslc \
-  -DOSL_MAKETX=$APPLESEED_DEPENDENCIES/bin/maketx \
-  -DOSL_QUERY_INFO=$APPLESEED_DEPENDENCIES/bin/oslinfo \
-  -DAPPLESEED_DENOISER_LINK_EXTRA_LIBRARIES:STRING="-Wl,--exclude-libs,ALL \
-    -L${APPLESEED_DEPENDENCIES}/lib \
-    -l:libIlmImf-2_3_s.a \
-    -l:libIlmThread-2_3_s.a \
-    -l:libImath-2_3_s.a \
-    -l:libIexMath-2_3_s.a \
-    -l:libIex-2_3_s.a \
-    -l:libHalf-2_3_s.a \
-    -l:libz.a" \
-  -DAPPLESEED_LINK_EXTRA_LIBRARIES:STRING="-Wl,--exclude-libs,ALL \
-    -L${APPLESEED_DEPENDENCIES}/lib \
-    -L${BOOST_PY_DIR}/lib \
+  -DBoost_ATOMIC_LIBRARY_RELEASE=$BOOST_LIBS/libboost_atomic.a \
+  -DBoost_CHRONO_LIBRARY_RELEASE=$BOOST_LIBS/libboost_chrono.a \
+  -DBoost_DATE_TIME_LIBRARY_RELEASE=$BOOST_LIBS/libboost_date_time.a \
+  -DBoost_FILESYSTEM_LIBRARY_RELEASE=$BOOST_LIBS/libboost_filesystem.a \
+  -DBoost_PYTHON3_LIBRARY=$BOOST_LIBS/libboost_python37.a \
+  -DBoost_PYTHON3_LIBRARY_RELEASE=$BOOST_LIBS/libboost_python37.a \
+  -DBoost_REGEX_LIBRARY_RELEASE=$BOOST_LIBS/libboost_regex.a \
+  -DBoost_SERIALIZATION_LIBRARY_RELEASE=$BOOST_LIBS/libboost_serialization.a \
+  -DBoost_SYSTEM_LIBRARY_RELEASE=$BOOST_LIBS/libboost_system.a \
+  -DBoost_THREAD_LIBRARY_RELEASE=$BOOST_LIBS/libboost_thread.a \
+  -DBoost_WAVE_LIBRARY_RELEASE=$BOOST_LIBS/libboost_wave.a \
+  -DPYTHON3_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/python/include/python3.7m \
+  -DEMBREE_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/embree/include \
+  -DEMBREE_LIBRARY=$APPLESEED_DEPENDENCIES/embree/lib/libembree3.a \
+  -DOPENIMAGEIO_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/openimageio/include \
+  -DOPENIMAGEIO_LIBRARY=$APPLESEED_DEPENDENCIES/openimageio/lib/libOpenImageIO.a \
+  -DOPENEXR_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/openexr/include \
+  -DIMATH_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/openexr/include \
+  -DIMATH_HALF_LIBRARY=$APPLESEED_DEPENDENCIES/openexr/lib/libHalf.a \
+  -DIMATH_IEX_LIBRARY=$APPLESEED_DEPENDENCIES/openexr/lib/libIex.a \
+  -DIMATH_MATH_LIBRARY=$APPLESEED_DEPENDENCIES/openexr/lib/libImath.a \
+  -DOPENEXR_IMF_LIBRARY=$APPLESEED_DEPENDENCIES/openexr/lib/libIlmImf.a \
+  -DOPENEXR_THREADS_LIBRARY=$APPLESEED_DEPENDENCIES/openexr/lib/libIlmThread.a \
+  -DXERCES_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/xerces/include \
+  -DXERCES_LIBRARY=$APPLESEED_DEPENDENCIES/xerces/lib/libxerces-c.a \
+  -DLZ4_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/lz4/include \
+  -DLZ4_LIBRARY=$APPLESEED_DEPENDENCIES/lz4/lib/liblz4.a \
+  -DOPENIMAGEIO_OIIOTOOL=$APPLESEED_DEPENDENCIES/openimageio/bin/oiiotool \
+  -DOPENIMAGEIO_IDIFF=$APPLESEED_DEPENDENCIES/openimageio/bin/idiff \
+  -DOSL_MAKETX=$APPLESEED_DEPENDENCIES/openimageio/bin/maketx \
+  -DOSL_COMPILER=$APPLESEED_DEPENDENCIES/osl/bin/oslc \
+  -DOSL_QUERY_INFO=$APPLESEED_DEPENDENCIES/osl/bin/oslinfo \
+  -DOSL_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/osl/include \
+  -DOSL_EXEC_LIBRARY=$APPLESEED_DEPENDENCIES/osl/lib/liboslexec.a \
+  -DOSL_COMP_LIBRARY=$APPLESEED_DEPENDENCIES/osl/lib/liboslcomp.a \
+  -DOSL_QUERY_LIBRARY=$APPLESEED_DEPENDENCIES/osl/lib/liboslquery.a \
+  -DZLIB_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/zlib/include \
+  -DZLIB_LIBRARY=$APPLESEED_DEPENDENCIES/zlib/lib/libz_pic.a \
+  -DPNG_PNG_INCLUDE_DIR=$APPLESEED_DEPENDENCIES/png/include \
+  -DPNG_LIBRARY=$APPLESEED_DEPENDENCIES/png/lib/libpng16.a \
+  -DAPPLESEED_DENOISER_LINK_EXTRA_LIBRARIES:STRING="-Wl,--exclude-libs,ALL -Wl,--as-needed \
+    -L${APPLESEED_DEPENDENCIES}/openexr/lib \
+    -L${APPLESEED_DEPENDENCIES}/zlib/lib \
+    -l:libIlmImf.a \
+    -l:libIlmThread.a \
+    -l:libImath.a \
+    -l:libIexMath.a \
+    -l:libIex.a \
+    -l:libHalf.a \
+    -l:libz_pic.a" \
+  -DAPPLESEED_LINK_EXTRA_LIBRARIES:STRING="-Wl,--exclude-libs,ALL -Wl,--as-needed \
+    -L${APPLESEED_DEPENDENCIES}/embree/lib \
+    -L${APPLESEED_DEPENDENCIES}/jpeg/lib \
+    -L${APPLESEED_DEPENDENCIES}/llvm/lib \
+    -L${APPLESEED_DEPENDENCIES}/opencolorio/lib \
+    -L${APPLESEED_DEPENDENCIES}/opencolorio/lib/static \
+    -L${APPLESEED_DEPENDENCIES}/openexr/lib \
+    -L${APPLESEED_DEPENDENCIES}/openimageio/lib \
+    -L${APPLESEED_DEPENDENCIES}/osl/lib \
+    -L${APPLESEED_DEPENDENCIES}/png/lib \
+    -L${APPLESEED_DEPENDENCIES}/tbb/lib \
+    -L${APPLESEED_DEPENDENCIES}/tiff/lib \
+    -L${APPLESEED_DEPENDENCIES}/zlib/lib \
     -l:libembree3.a \
     -l:libembree_avx2.a \
     -l:libembree_avx.a \
@@ -131,6 +199,7 @@ cmake -B ../build -Wno-dev \
     -l:libtasking.a \
     -l:liblexers.a \
     -l:libsys.a \
+    -l:libtbb.a \
     -l:liboslexec.a \
     -l:libOpenImageIO.a \
     -l:libOpenColorIO.a \
@@ -138,13 +207,13 @@ cmake -B ../build -Wno-dev \
     -l:libtinyxml.a \
     -l:libtiff.a \
     -l:libjpeg.a \
-    -l:libIlmImf-2_3_s.a \
-    -l:libIlmThread-2_3_s.a \
-    -l:libImath-2_3_s.a \
-    -l:libIexMath-2_3_s.a \
-    -l:libIex-2_3_s.a \
-    -l:libHalf-2_3_s.a \
-    -l:libIex-2_3_s.a \
+    -l:libIlmImf.a \
+    -l:libIlmThread.a \
+    -l:libImath.a \
+    -l:libIexMath.a \
+    -l:libIex.a \
+    -l:libHalf.a \
+    -l:libIex.a \
     -l:libpng16.a \
     -l:libLLVMLTO.a \
     -l:libLLVMPasses.a \
@@ -205,27 +274,22 @@ cmake -B ../build -Wno-dev \
     -l:libLLVMBinaryFormat.a \
     -l:libLLVMSupport.a \
     -l:libLLVMDemangle.a \
-    -l:libz.a \
-    -lpthread \
-    -lutil \
-    -ltbb \
-    -ldl \
-    -lm"
+    -l:libz_pic.a"
 
-# Build appleseed for blender then install it
-cd $HOME/appleseed-git/build && make all \
- && cmake --install . --prefix $HOME/blenderseed-git/appleseed
+# Build appleseed for blender & install locally
+cd $HOME/appleseed-git/build \
+ && make -j16 --quiet \
+ && cmake --install . --prefix $HOME/appleseed-git/appleseed-install
 
-# Make sure blenderseed is downloaded & fix packaging bug
-if [ ! -d "$HOME/blenderseed-git/blenderseed" ]; then
-    cd $HOME/blenderseed-git \
-    && git clone https://github.com/appleseedhq/blenderseed.git \
-    && sed -i "s/\"libappleseed.so\", \"libappleseed.shared.so\"/\"libappleseed.so\"/g" \
-     $HOME/blenderseed-git/blenderseed/scripts/blenderseed.package.py
-fi
-
-# Finally bundle blenderseed
-cp $HOME/patches/blenderseed.package.configuration.xml $HOME/blenderseed-git/blenderseed/scripts \
- && cd $HOME/blenderseed-git/blenderseed/scripts \
+# Bundle blenderseed and save in output dir
+cd $HOME/appleseed-git/blenderseed/scripts \
  && pip2 install colorama \
  && python2 blenderseed.package.py
+
+# Reset patches
+cd $HOME/appleseed-git/blenderseed \
+ && git reset --hard \
+ && git clean -f
+cd $HOME/blender-git/blender \
+ && git reset --hard \
+ && git clean -f

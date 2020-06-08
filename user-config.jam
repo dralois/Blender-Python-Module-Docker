@@ -1,3 +1,3 @@
 # Python configuration
 import toolset : using ;
-using python : 3.7 : /root/blender-git/lib/linux_x86_64/python/bin/python3.7m : /root/blender-git/lib/linux_x86_64/python/include/python3.7m : /root/blender-git/lib/linux_x86_64/python/lib ;
+using python : 3.7 : /root/applesee-git/deps-build/Release/python/bin/python3.7m : /root/applesee-git/deps-build/Release/python/include/python3.7m : /root/applesee-git/deps-build/Release/python/lib ;

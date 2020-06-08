@@ -43,6 +43,7 @@ RUN yum -y install pulseaudio-libs-devel
 RUN yum -y install jack-audio-connection-kit-devel
 
 # Cleanup
+RUN yum -y erase boost*
 RUN yum -y clean all
 
 # Use cmake3

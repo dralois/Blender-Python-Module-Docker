@@ -1,0 +1,58 @@
+diff -Naur ../scripts_org/blenderseed.package.configuration.xml ./blenderseed.package.configuration.xml
+--- ../scripts_org/blenderseed.package.configuration.xml	1970-01-01 00:00:00.000000000 +0000
++++ ./blenderseed.package.configuration.xml	2020-06-04 15:32:07.028546400 +0000
+@@ -0,0 +1,42 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<configuration>
++    <!-- The name of the target platform. This parameter is only used to name the final archive.
++         Example values: win64, linux64, mac64, etc. -->
++    <platform>linux64</platform>
++
++    <!-- The path to the appleseed release files will be copied from.
++         This path is stored in the $APPLESEED environment variable by the packaging script. -->
++    <appleseed_release_path>/root/appleseed-git/appleseed-install</appleseed_release_path>
++
++    <!-- The path to appleseed binaries.
++         Environment variables can be used and will be expanded. -->
++    <appleseed_bin_path>$APPLESEED/bin</appleseed_bin_path>
++
++    <!-- The path to appleseed libraries.
++         Environment variables can be used and will be expanded. -->
++    <appleseed_lib_path>$APPLESEED/lib</appleseed_lib_path>
++
++    <!-- The path to appleseed shaders.
++         Environment variables can be used and will be expanded. -->
++    <appleseed_shaders_path>$APPLESEED/shaders</appleseed_shaders_path>
++
++    <!-- The path to appleseed schemas.
++         Environment variables can be used and will be expanded. -->
++    <appleseed_schemas_path>$APPLESEED/schemas</appleseed_schemas_path>
++
++    <!-- The path to appleseed settings.
++         Environment variables can be used and will be expanded. -->
++    <appleseed_settings_path>$APPLESEED/settings</appleseed_settings_path>
++
++    <!-- The path to appleseed.python.
++         Environment variables can be used and will be expanded. -->
++    <appleseed_python_path>$APPLESEED/lib/python.</appleseed_python_path>
++
++    <!-- The path to the maketx binary.
++         Environment variables can be used and will be expanded. -->
++    <maketx_path>$APPLESEED/bin/maketx</maketx_path>
++
++    <!-- The directory inside which the final archive file will be created.
++         Environment variables can be used and will be expanded. -->
++    <output_dir>/root/build</output_dir>
++</configuration>
+diff -Naur ../scripts_org/blenderseed.package.py ./blenderseed.package.py
+--- ../scripts_org/blenderseed.package.py	2020-06-04 15:29:24.719990200 +0000
++++ ./blenderseed.package.py	2020-06-04 15:32:11.827785100 +0000
+@@ -605,7 +605,7 @@
+         safe_make_directory(lib_dir)
+ 
+         # Copy appleseed libraries.
+-        for lib in ["libappleseed.so", "libappleseed.shared.so"]:
++        for lib in ["libappleseed.so"]:
+             shutil.copy(os.path.join(self.settings.appleseed_lib_path, lib), lib_dir)
+ 
+         # Get shared libs needed by binaries.
