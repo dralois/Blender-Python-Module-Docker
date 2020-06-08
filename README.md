@@ -22,7 +22,7 @@ Then, either run the automatic build script
 
 ```bash
 # 0) Optionally switch to Blender v2.83
-export BLV=blender-v2.83-release
+export BLV=v2.83
 
 # 1) Build bpy using the build script
 sh /usr/bin/build.sh
@@ -49,7 +49,7 @@ make [full] [lite] [bpy BUILD_CMAKE_ARGS="-D WITH_MEM_JEMALLOC=OFF"]
 
 ### Appleseed + Blenderseed build
 
-The Blender dependencies have to have been built already for the script to work, as building Blenderseed requires the static python version built for Blender. If this is the case, boost python (1.61.0) is built using that python version and linked when building Appleseed. This python 3 version is linked as well, which allows to generate the required python 3 bindings.
+Blender should have been built already for this to work, but simply initiating the repository in the correct path is technically enough. If this is the case, all appleseed dependencies are built using Blender's dependency build pipeline. This includes the specific boost python version that is necessary for Appleseed to work with Blender. The Appleseed dependency versions currently do not match up 100% with the ones used for official builds due to compilation issues. Please consider that if bugs or crashes occur, it might be because of this cavity. On the machines I tested this build however, it worked flawlessly.
 
 ```bash
 # Builds appleseed & blenderseed
